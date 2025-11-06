@@ -1,3 +1,5 @@
+// INDEX.JS COPY PASTE TEMPLATE
+
 // Require the necessary discord.js classes
 const fs = require('node:fs');
 const path = require('node:path');
