@@ -34,7 +34,7 @@ module.exports = {
                 return await interaction.reply({ content: 'This command can only be used in a post', ephemeral: true });
             }
 
-            await interaction.reply({ content: `Quest post closed, reopen with /quests reopen ${thread.id}`, ephemeral: false });
+            await interaction.reply({ content: `Quest post closed, reopen with /quests reopenpost ${thread.id}`, ephemeral: false });
             await thread.setLocked(true); // locked
             await thread.setArchived(true); // archived
         }
