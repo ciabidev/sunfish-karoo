@@ -1,3 +1,18 @@
+// express health check
+
+const express = require("express");
+const app = express();
+
+// This route just confirms the bot is online
+app.get("/", (req, res) => {
+  res.send("✅ Sunfish-Karoo is alive!");
+});
+
+// Render automatically assigns a port in process.env.PORT
+app.listen(process.env.PORT || 3000, () => {
+  console.log("🌐 Express keep-alive server running.");
+});
+
 // INDEX.JS COPY PASTE TEMPLATE
 
 // Require the necessary discord.js classes
