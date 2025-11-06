@@ -23,7 +23,7 @@ module.exports = {
         // check if the user is the creator of the thread
 
 
-        if (subcommand === 'close') {
+        if (subcommand === 'closepost') {
             if (interaction.user.id !== interaction.channel.ownerId) {
                 return await interaction.reply({ content: 'You are not the creator of this post', ephemeral: true });
             }
@@ -39,7 +39,7 @@ module.exports = {
             await thread.setArchived(true); // archived
         }
 
-        if (subcommand === 'reopen') {
+        if (subcommand === 'reopenpost') {
             const threadId = interaction.options.getString('thread_id', true);
 
             try {
