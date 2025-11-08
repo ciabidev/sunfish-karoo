@@ -19,10 +19,19 @@ app.listen(process.env.PORT || 3000, () => {
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
-const { token } = require('./config.json');
+const { dev_mode, devToken, productionToken, productionClientId, devClientId } = require('./config.json');
+
+const token = dev_mode === true ? devToken : productionToken;
 
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent, // REQUIRED for messageCreate
+    GatewayIntentBits.GuildMembers,
+  ],
+});
 
 // Log in to Discord with your client's token
 client.commands = new Collection(); 
@@ -40,7 +49,7 @@ for (const folder of commandFolders) {
 			client.commands.set(command.data.name, command);
 		} else {
 			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-		}
+		} 
 	}
 }
 
