@@ -42,16 +42,21 @@ for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
 	const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
 	for (const file of commandFiles) {
-		const filePath = path.join(commandsPath, file);
-		const command = require(filePath);
-		// Set a new item in the Collection with the key as the command name and the value as the exported module
-		if ('data' in command && 'execute' in command) {
-			client.commands.set(command.data.name, command);
-		} else {
-			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
-		} 
-	}
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    command.__path = filePath; // this is needed for reloading commands
+    // Set a new item in the Collection with the key as the command name and the value as the exported module
+    if ("data" in command && "execute" in command) {
+      client.commands.set(command.data.name, command);
+    } else {
+      console.log(
+        `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
+      );
+    }
+  }
 }
+
+// load other files
 
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith('.js'));
@@ -64,4 +69,30 @@ for (const file of eventFiles) {
 		client.on(event.name, (...args) => event.execute(...args));
 	}
 }  
+
+const modulesPath = path.join(__dirname, "src/modules");
+const moduleFiles = fs.readdirSync(modulesPath).filter((file) => file.endsWith(".js"));
+
+client.modules = {};
+
+for (const file of moduleFiles) {
+  const filePath = path.join(modulesPath, file);
+
+  try {
+    const imported = require(filePath);
+    const name = file.replace(".js", "");
+
+    if (typeof imported === "function" && imported.length === 0) {
+      imported(client);
+      console.log(`[MODULE] Loaded boot: ${file}`);
+      continue;
+    }
+
+    client.modules[name] = imported;
+    console.log(`[MODULE] Loaded utility: ${file}`);
+  } catch (err) {
+    console.error(`[MODULE] Failed to load ${file}:`, err);
+  }
+}
+
 client.login(token);
