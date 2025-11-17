@@ -1,38 +1,42 @@
 const {
   SlashCommandBuilder,
   PermissionsBitField,
-  ContainerBuilder,
-  TextDisplayBuilder,
   MessageFlags,
+  Collection,
 } = require("discord.js");
+
+// dictionary to store the points of each user based on their user.id
+const points = new Collection();
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("moderation")
     .setDescription("moderation commands")
 
-    .addSubcommand((subcommand) => subcommand
-      .setName("warn")
-      .setDescription("warn a member")
-      .addUserOption((option) => option.setName("member").setDescription("the member to warn").setRequired(true))
-      .addStringOption((option) => option.setName("reason").setDescription("the reason for the warning").setRequired(true))
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("warn")
+        .setDescription("warn a member")
+        .addUserOption((option) =>
+          option.setName("member").setDescription("the member to warn").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("reason").setDescription("the reason for the warning").setRequired(true)
+        )
     )
 
     .addSubcommand((subcommand) =>
       subcommand
-        .setName("timeout")
-        .setDescription("timeout a member")
+        .setName("punish")
+        .setDescription("timeout or ban a member based on their previous points")
         .addUserOption((option) =>
-          option.setName("member").setDescription("the member to timeout").setRequired(true)
+          option.setName("member").setDescription("the member to punish").setRequired(true)
         )
         .addStringOption((option) =>
-          option
-            .setName("duration")
-            .setDescription("the duration of the timeout in 1d, 1h, 1m, 1s")
-            .setRequired(true)
+          option.setName("reason").setDescription("the reason for the punishment").setRequired(true)
         )
-        .addStringOption((option) =>
-          option.setName("reason").setDescription("the reason for the timeout").setRequired(true)
+        .addIntegerOption((option) =>
+          option.setName("add").setDescription("the amount of points to add to this member").setRequired(true)
         )
     )
 
@@ -57,116 +61,144 @@ module.exports = {
         )
     ),
 
-  // we need to use a database to store the bans
-  // .addSubcommand((subcommand) =>
-  //   subcommand
-  //     .setName("ban")
-  //     .setDescription("ban a member from the server")
-  //     .addUserOption((option) =>
-  //       option.setName("member").setDescription("the member to ban").setRequired(true)
-  //     )
-  // ),
-
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === "warn") {
-      if (interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-        const user = interaction.options.getUser("member");
-
-        const member = await interaction.guild.members.fetch(user.id);
-
-        // check if the member's heirarchy is above the interaction.user
-        if (member.roles.highest.position > interaction.member.roles.highest.position) {
-          await interaction.reply({content: `You cannot warn <@${user.id}> because they are simply better (they are higher in the role hierarchy than you).`
-          , flags: MessageFlags.Ephemeral});
-          return;
-        }
-
-        const reason = interaction.options.getString("reason");
-
-        try {
-          await interaction.client.modules.sendModerationDM({
-            user,
-            guild: interaction.guild,
-            action: "Warning",
-            reason,
-            actionedBy: interaction.user,
-          });
-        } catch (err) {
-          console.log("Failed to DM user:", err);
-        }
-
-        await interaction.reply(`Warned <@${user.id}>. Reason: ${reason}`);
-      } else {
-        await interaction.reply({
-          content: "You do not have permission to warn members.",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
     }
-    if (subcommand === "timeout") {
+    if (subcommand === "punish") {
       if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
-        const user = interaction.options.getUser("member");
-        const member = await interaction.guild.members.fetch(user.id);
-        if (member.roles.highest.position > interaction.member.roles.highest.position) {
+        const targetUser = interaction.options.getUser("member");
+        const targetMember = await interaction.guild.members.fetch(targetUser.id);
+
+        if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
           await interaction.reply({
-            content: `You cannot timeout <@${user.id}> because they are higher in the role hierarchy than you.`,
+            content: `You cannot moderate <@${targetUser.id}> because they are simply better (they are higher in the role hierarchy than you).`,
             flags: MessageFlags.Ephemeral,
           });
           return;
         }
-        // get the dynamic duration in milliseconds
-        const duration = await interaction.client.modules.durationToMilliseconds(
-          interaction.options.getString("duration")
-        );
 
+        let prevPoints = points.get(targetUser.id);
+
+        if (prevPoints === undefined) prevPoints = 0;
+        const addPoints = interaction.options.getInteger("add");
+        const currentPoints = prevPoints + addPoints;
+        points.set(targetUser.id, currentPoints);
+
+        if (currentPoints < 5 || prevPoints === undefined) action = "warn";
+        else if (currentPoints < 10) action = "Short Timeout";
+        else if (currentPoints < 15) action = "Medium Timeout";
+        else if (currentPoints < 20) action = "Long Timeout";
+        else if (currentPoints < 25) action = "One Day Timeout";
+        else action = "Thousand Years Timeout";
+
+        let duration;
         const reason = interaction.options.getString("reason");
 
-        await member.timeout(duration, reason);
-        // send a reply with the member's name and the duration
-        const formattedDuration = await interaction.client.modules.formatMilliseconds(duration);
+        console.log(`currentPoints: ${currentPoints}, prevPoints: ${prevPoints}`);
+        switch (action) {
+          case "warn":
+            try {
+              await interaction.client.modules.sendModerationDM({
+                targetUser,
+                guild: interaction.guild,
+                action: "Warning",
+                reason,
+                actionedBy: interaction.user,
+              });
+            } catch(err) {
+              // 
+            }
+            await interaction.client.modules.sendModerationMessage({
+              targetUser,
+              interaction,
+              action,
+              reason,
+            });
+            break;
+          case "Short Timeout":
+            duration = "30m";
+            break;
+          case "Medium Timeout":
+            duration = "6h";
+            break;
+          case "Long Timeout":
+            duration = "12h";
+            break;
+          case "One Day Timeout":
+            duration = "1d";
+            break;
+          case "Thousand Years Timeout":
+            if (!interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+              await interaction.reply("You do not have permission to ban members.");
+            }
+            await interaction.reply("Banning members is not implemented yet.");
+            break;
+        }
+        
+        if (duration !== undefined) {
+          const durationMilliseconds = await interaction.client.modules.durationToMilliseconds(duration);
+          const formattedDuration = await interaction.client.modules.formatMilliseconds(durationMilliseconds);
+          await targetMember.timeout(durationMilliseconds, reason);
 
-        await interaction.reply(
-          `Timed out <@${user.id}> for ${formattedDuration}. \n Reason: ${reason}`
-        );
+          await interaction.client.modules.sendModerationMessage({
+            targetUser,
+            interaction,
+            action,
+            reason,
+            duration: formattedDuration,
+          });
 
-        await interaction.client.modules.sendModerationDM({
-          user,
-          guild: interaction.guild,
-          action: "Timeout",
-          reason,
-          duration: formattedDuration,
-          actionedBy: interaction.user,
+          try {
+            await interaction.client.modules.sendModerationDM({
+              targetUser,
+              guild: interaction.guild,
+              action,
+              reason,
+              duration: formattedDuration,
+              actionedBy: interaction.user,
+            });
+          } catch (err) {
+            //
+          }
+        }
+      } else {
+        await interaction.reply({
+          content:
+            "You do not have permission to punish members (need Timeout Members permission).",
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
 
     if (subcommand === "removetimeout") {
       if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
-        const user = interaction.options.getUser("member");
-        const member = await interaction.guild.members.fetch(user.id);
+        const targetUser = interaction.options.getUser("member");
+        const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
-        if (member.roles.highest.position > interaction.member.roles.highest.position) {
+        if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
           await interaction.reply({
-            content:`You cannot remove the timeout from <@${user.id}> because they are higher in the role hierarchy than you.`
-            , flags: MessageFlags.Ephemeral
+            content: `You cannot remove the timeout from <@${targetUser.id}> because they are higher in the role hierarchy than you.`,
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
-        if (member.communicationDisabledUntilTimestamp === null) {
-          await interaction.reply({content: `<@${user.id}> is not timed out`, flags: MessageFlags.Ephemeral});
+        if (targetMember.communicationDisabledUntilTimestamp === null) {
+          await interaction.reply({
+            content: `<@${targetUser.id}> is not timed out`,
+            flags: MessageFlags.Ephemeral,
+          });
           return;
         }
 
-        await member.timeout(null, "timeout");
-        // send a reply with the member's name and the duration
+        await targetMember.timeout(null, "timeout");
 
-        await interaction.reply({content: `Removed timeout from <@${user.id}>`});
+        await interaction.reply({ content: `Removed timeout from <@${targetUser.id}>` });
 
         await interaction.client.modules.sendModerationDM({
-          user,
+          targetUser,
           guild: interaction.guild,
           action: "Remove Timeout",
           actionedBy: interaction.user,
@@ -181,23 +213,22 @@ module.exports = {
 
     if (subcommand === "kick") {
       if (interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-        const user = interaction.options.getUser("member");
+        const targetUser = interaction.options.getUser("member");
+        const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
-        const member = await interaction.guild.members.fetch(user.id);
-
-        // check if the member's heirarchy is above the interaction.user
-        if (member.roles.highest.position > interaction.member.roles.highest.position) {
-          await interaction.reply({content: `You cannot kick <@${user.id}> because they are simply better (they are higher in the role hierarchy than you).`
-          , flags: MessageFlags.Ephemeral});
+        if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
+          await interaction.reply({
+            content: `You cannot kick <@${targetUser.id}> because they are simply better (they are higher in the role hierarchy than you).`,
+            flags: MessageFlags.Ephemeral,
+          });
           return;
         }
 
         const reason = interaction.options.getString("reason");
         try {
-
           try {
             await interaction.client.modules.sendModerationDM({
-              user,
+              targetUser,
               guild: interaction.guild,
               action: "Kick",
               reason,
@@ -207,9 +238,7 @@ module.exports = {
             console.log("Failed to DM user:", err);
           }
 
-          await member.kick(reason);
-
-          
+          await targetMember.kick(reason);
         } catch (err) {
           console.error(err);
           await interaction.reply({
@@ -219,7 +248,7 @@ module.exports = {
           return;
         }
 
-        await interaction.reply(`Kicked <@${user.id}>. Reason: ${reason}`);
+        await interaction.reply(`Kicked <@${targetUser.id}>. Reason: ${reason}`);
       } else {
         await interaction.reply({
           content: "You do not have permission to kick members. Who do you think you are?",

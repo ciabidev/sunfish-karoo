@@ -1,6 +1,6 @@
 
 module.exports = async function sendModerationDM({
-  user,
+  targetUser,
   guild,
   action,
   reason = "No reason provided",
@@ -19,17 +19,17 @@ module.exports = async function sendModerationDM({
   }
 
   try {
-    await user.send({
+    await targetUser.send({
       embeds: [
         {
-          title: "Moderation Notice",
-          description: "a moderation action was applied to your account.",
+          title: `You (probably) broke a rule in ${guild.name}`,
+          description: "a moderation action was applied...",
           fields,
           color: 0xff0000,
         },
       ],
     });
   } catch (err) {
-    console.error(`Failed to DM ${user.id}:`, err);
+    console.error(`Failed to DM ${targetUser.id}:`, err);
   }
 };

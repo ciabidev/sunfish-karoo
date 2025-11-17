@@ -1,3 +1,4 @@
+// convert a readable duration string to milliseconds
 
 module.exports = (duration) => {
   duration = String(duration);
@@ -5,6 +6,7 @@ module.exports = (duration) => {
   const durationRegex = /(\d+)([smhd])/;
   const matches = duration.match(durationRegex);
 
+  console.log(duration);
   if (!matches) {
     throw new Error("Invalid duration format");
   }
