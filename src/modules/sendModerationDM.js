@@ -1,11 +1,14 @@
 
+
 module.exports = async function sendModerationDM({
   targetUser,
   guild,
   action,
   reason = "No reason provided",
-  duration = null,
+  formattedDuration = null,
   actionedBy,
+  addPoints = null,
+  removePoints = null,
 }) {
   const fields = [
     { name: "Action", value: action, inline: false },
@@ -14,8 +17,16 @@ module.exports = async function sendModerationDM({
     { name: "Server", value: guild.name, inline: false },
   ];
 
-  if (duration) {
-    fields.push({ name: "Duration", value: duration, inline: false });
+  if (formattedDuration) {
+    fields.push({ name: "Duration", value: formattedDuration, inline: false });
+  }
+
+  if (addPoints) {
+    fields.push({ name: "Points Added", value: addPoints, inline: false });
+  }
+
+  if (removePoints) {
+    fields.push({ name: "Points Removed", value: removePoints, inline: false });
   }
 
   try {
