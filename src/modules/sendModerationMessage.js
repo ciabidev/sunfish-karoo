@@ -1,7 +1,6 @@
 // send a moderation message embed to the channel the command was used in
 
 const { TextDisplayBuilder, SeparatorBuilder, ContainerBuilder, MessageFlags, SeparatorSpacingSize } = require("discord.js");
-const { text } = require("express");
 module.exports = async function sendModerationMessage({
   targetUser,
   action,
@@ -13,6 +12,8 @@ module.exports = async function sendModerationMessage({
   addPoints = null,
   removePoints = null,
 }) {
+
+  console.log(targetUser.id);
   const mainText = 
     new ContainerBuilder().addTextDisplayComponents(
       (t) => t.setContent(`## moderation action`),

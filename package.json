@@ -20,6 +20,7 @@
     "dev": "npm run postinstall && nodemon index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.84.0",
     "discord.js": "^14.24.2",
     "express": "^5.1.0"
   },

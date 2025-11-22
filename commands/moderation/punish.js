@@ -6,27 +6,24 @@ const {
 
 
 // get points variable from moderation.js
-const points = new Collection();
+const { points } = require("./main");
+const { SlashCommandSubcommandBuilder } = require("discord.js");
+
 module.exports = {
-  data: (
-    parent // we use parent cause its gonna be imported into the main moderation.js script as a subcommand
-  ) =>
-    parent.addSubcommand((sc) =>
-      sc
-        .setName("punish")
-        .setDescription("warn, timeout, or ban a member based on their previous points")
-        .addUserOption((option) =>
-          option.setName("member").setDescription("the member to punish").setRequired(true)
-        )
-        .addStringOption((option) =>
-          option.setName("reason").setDescription("the reason for the punishment").setRequired(true)
-        )
-        .addIntegerOption((option) =>
-          option
-            .setName("add")
-            .setDescription("the amount of points to add to this member")
-            .setRequired(true)
-        )
+  data: new SlashCommandSubcommandBuilder()
+    .setName("punish")
+    .setDescription("warn, timeout, or ban a member based on their previous points")
+    .addUserOption((option) =>
+      option.setName("member").setDescription("the member to punish").setRequired(true)
+    )
+    .addStringOption((option) =>
+      option.setName("reason").setDescription("the reason for the punishment").setRequired(true)
+    )
+    .addIntegerOption((option) =>
+      option
+        .setName("add")
+        .setDescription("the amount of points to add to this member")
+        .setRequired(true)
     ),
   execute: async (interaction) => {
     if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
@@ -36,7 +33,7 @@ module.exports = {
       // Prevent moderating users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
         await interaction.reply({
-          content: `You cannot moderate <@${targetUser.id}> because they are simply better (they are higher in the role hierarchy than you).`,
+          content: `You cannot moderate <@${targetUser.id}> because they are higher in the role heirarchy than you.`,
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -51,6 +48,7 @@ module.exports = {
       const currentPoints = prevPoints + addPoints;
       points.set(targetUser.id, currentPoints);
 
+      let action;
       // Determine action based on point thresholds
       if (currentPoints < 5 || prevPoints === undefined) action = "warn";
       else if (currentPoints < 10) action = "Short Timeout";
