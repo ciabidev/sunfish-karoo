@@ -6,7 +6,7 @@ const {
 
 
 // get points variable from moderation.js
-const { points } = require("./main");
+const { getUserPoints, createCase } = require("../../src/modules/supabase");
 const { SlashCommandSubcommandBuilder } = require("discord.js");
 
 module.exports = {
@@ -40,13 +40,13 @@ module.exports = {
       }
 
       // Get previous points or default to 0
-      let prevPoints = points.get(targetUser.id);
+      let prevPoints = await getUserPoints(targetUser.id);
       if (prevPoints === undefined) prevPoints = 0;
 
       // Add new points to the user's total
-      const addPoints = interaction.options.getInteger("add");
-      const currentPoints = prevPoints + addPoints;
-      points.set(targetUser.id, currentPoints);
+      const pointsDelta = interaction.options.getInteger("add");
+      const currentPoints = prevPoints + pointsDelta;
+   
 
       let action;
       // Determine action based on point thresholds
@@ -67,30 +67,16 @@ module.exports = {
         case "warn":
           // Send warning DM to user
           try {
-            await interaction.client.modules.sendModerationDM({
-              targetUser,
-              guild: interaction.guild,
-              action: "Warning",
-              reason,
-              actionedBy: interaction.user,
-              addPoints,
+            await interaction.client.modules.recordModerationEvent({
+                targetUser,
+                action: "Warning",
+                reason,
+                interaction,
+                pointsDelta,
+                notifyUser: true,
             });
           } catch (err) {
-            // Silently fail if DM cannot be sent
-          }
-
-          // Send warning message to moderation channel
-          try {
-            await interaction.client.modules.sendModerationMessage({
-              targetUser,
-              interaction,
-              action,
-              actionedBy: interaction.user,
-              reason,
-              addPoints,
-            });
-          } catch (err) {
-            // Silently fail if message cannot be sent
+            console.error(err);
           }
           break;
         case "Short Timeout":
@@ -116,45 +102,23 @@ module.exports = {
 
       // Apply timeout if duration is set
       if (duration !== undefined) {
-        const durationMilliseconds = await interaction.client.modules.durationToMilliseconds(
+        const durationMs = await interaction.client.modules.durationToMilliseconds(
           duration
-        );
-        const formattedDuration = await interaction.client.modules.formatMilliseconds(
-          durationMilliseconds
         );
 
         // Timeout the member
-        await targetMember.timeout(durationMilliseconds, reason);
+        await targetMember.timeout(durationMs, reason);
 
         // Send timeout message to moderation channel
-        try {
-          await interaction.client.modules.sendModerationMessage({
-            targetUser,
-            action,
-            reason,
-            formattedDuration,
-            interaction,
-            actionedBy: interaction.user,
-            addPoints,
-          });
-        } catch (err) {
-          // Silently fail if message cannot be sent
-        }
-
-        // Send timeout DM to user
-        try {
-          await interaction.client.modules.sendModerationDM({
-            targetUser,
-            guild: interaction.guild,
-            action,
-            reason,
-            formattedDuration,
-            actionedBy: interaction.user,
-            addPoints,
-          });
-        } catch (err) {
-          // Silently fail if DM cannot be sent
-        }
+        await interaction.client.modules.recordModerationEvent({
+          targetUser,
+          action,
+          reason,
+          durationMs,
+          interaction,
+          pointsDelta,
+          notifyUser: true,
+        });
       }
     } else {
       // User lacks timeout permission

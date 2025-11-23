@@ -30,8 +30,8 @@ module.exports = {
       if (prevPoints === undefined) prevPoints = 0;
 
       // Subtract points from user's total
-      const removePoints = interaction.options.getInteger("points");
-      const currentPoints = prevPoints - removePoints;
+      const points = interaction.options.getInteger("points");
+      const currentPoints = prevPoints - pointsDelta;
       points.set(targetUser.id, currentPoints);
 
       // Send removal message to moderation channel
@@ -40,7 +40,7 @@ module.exports = {
         action: "Remove Points",
         interaction,
         actionedBy: interaction.user,
-        removePoints,
+        pointsDelta,
       });
     } else {
       // User lacks ban permission

@@ -8,13 +8,6 @@ const {
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Collection to store moderation points for each user
-// Key: user.id, Value: points (number)
-const points = new Collection();
-
-module.exports.points = points;
-
-
 module.exports = {
   data: (() => {
     const builder = new SlashCommandBuilder()
