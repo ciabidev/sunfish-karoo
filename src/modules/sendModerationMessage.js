@@ -14,19 +14,23 @@ module.exports = async function sendModerationMessage({
   console.log(targetUser.id);
 
   const formattedDuration = interaction.client.modules.formatMilliseconds(durationMs);
-  const mainText = 
-    new ContainerBuilder().addTextDisplayComponents(
+  const mainText = new ContainerBuilder()
+    .addTextDisplayComponents(
       (t) => t.setContent(`## moderation action`),
       (t) => t.setContent(`${action} to <@${targetUser.id}> by <@${actionedBy.id}>`),
       (t) => t.setContent(`**Reason:**\n${reason ? reason : "No reason provided"}\n`),
       ...(durationMs ? [(t) => t.setContent(`**Duration:**\n${formattedDuration}\n`)] : [])
-
     )
-    
+
     .addSeparatorComponents((seperator) => seperator)
-    
+
     .addTextDisplayComponents(
-      ...(pointsDelta ? [(t) => t.setContent(`-# **Point Change:** +${pointsDelta}\n`)] : []),
+      ...(pointsDelta
+        ? [
+            (t) =>
+              t.setContent(`-# **Point Change:** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`),
+          ]
+        : [])
     );
     
   const components = [mainText];

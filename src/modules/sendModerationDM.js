@@ -11,7 +11,7 @@ module.exports = async function sendModerationDM({
 }) {
   const fields = [
     { name: "Action", value: action, inline: false },
-    { name: "Reason", value: reason, inline: false },
+    { name: "Reason", value: reason ? reason : "No reason provided", inline: false },
     { name: "Actioned By", value: `<@${actionedBy.id}>`, inline: false },
     { name: "Server", value: interaction.guild.name, inline: false },
   ];
@@ -21,7 +21,7 @@ module.exports = async function sendModerationDM({
   }
 
   if (pointsDelta) {
-    fields.push({ name: "Point Change", value: `+${pointsDelta}`, inline: false });
+    fields.push({ name: "Point Change", value: `${pointsDelta > 0 ? "+" : ""}${pointsDelta}`, inline: false });
   }
 
   try {

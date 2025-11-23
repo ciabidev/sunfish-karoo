@@ -10,12 +10,15 @@ module.exports = {
     .setDescription("remove timeout from a member")
     .addUserOption((option) =>
       option.setName("member").setDescription("the member to remove timeout").setRequired(true)
+    )
+    .addStringOption((option) =>
+      option.setName("reason").setDescription("the reason to remove timeout").setRequired(false)
     ),
   execute: async (interaction) => {
     if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
       const targetUser = interaction.options.getUser("member");
       const targetMember = await interaction.guild.members.fetch(targetUser.id);
-
+      const reason = interaction.options.getString("reason");
       // Prevent removing timeouts on users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
         await interaction.reply({
@@ -37,19 +40,11 @@ module.exports = {
       // Remove timeout by setting it to null
       await targetMember.timeout(null, "timeout");
 
-      // Send removal message to moderation channel
-      await interaction.client.modules.sendModerationMessage({
+     await interaction.client.modules.recordModerationEvent({
         targetUser,
-        action: "Remove Timeout",
         interaction,
-        actionedBy: interaction.user,
-      });
-
-      // Send removal DM to user
-      await interaction.client.modules.sendModerationDM({
-        targetUser,
-        guild: interaction.guild,
         action: "Remove Timeout",
+        reason,
         actionedBy: interaction.user,
       });
     } else {

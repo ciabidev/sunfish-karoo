@@ -6,7 +6,7 @@ const {
 
 
 // get points variable from moderation.js
-const { getUserPoints, createCase } = require("../../src/modules/supabase");
+const { getUserPoints } = require("../../src/modules/supabase");
 const { SlashCommandSubcommandBuilder } = require("discord.js");
 
 module.exports = {
@@ -41,12 +41,20 @@ module.exports = {
 
       // Get previous points or default to 0
       let prevPoints = await getUserPoints(targetUser.id);
-      if (prevPoints === undefined) prevPoints = 0;
 
       // Add new points to the user's total
-      const pointsDelta = interaction.options.getInteger("add");
-      const currentPoints = prevPoints + pointsDelta;
-   
+      const addPoints = interaction.options.getInteger("add");
+      const currentPoints = prevPoints + addPoints;
+      const pointsDelta = currentPoints - prevPoints;
+      
+      // Prevent adding negative points
+      if (addPoints < 0) {
+        await interaction.reply({
+          content: "You cannot add negative points.",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
 
       let action;
       // Determine action based on point thresholds
@@ -68,12 +76,12 @@ module.exports = {
           // Send warning DM to user
           try {
             await interaction.client.modules.recordModerationEvent({
-                targetUser,
-                action: "Warning",
-                reason,
-                interaction,
-                pointsDelta,
-                notifyUser: true,
+              targetUser,
+              action: "Warning",
+              reason,
+              interaction,
+              pointsDelta,
+              notifyUser: true,
             });
           } catch (err) {
             console.error(err);
@@ -102,9 +110,7 @@ module.exports = {
 
       // Apply timeout if duration is set
       if (duration !== undefined) {
-        const durationMs = await interaction.client.modules.durationToMilliseconds(
-          duration
-        );
+        const durationMs = await interaction.client.modules.durationToMilliseconds(duration);
 
         // Timeout the member
         await targetMember.timeout(durationMs, reason);

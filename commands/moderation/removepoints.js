@@ -1,6 +1,5 @@
 const { PermissionsBitField, MessageFlags, SlashCommandSubcommandBuilder } = require("discord.js");
 
-const { points } = require("./main");
 module.exports = {
   data: new SlashCommandSubcommandBuilder()
         .setName("removepoints")
@@ -10,11 +9,16 @@ module.exports = {
         )
         .addIntegerOption((option) =>
           option.setName("points").setDescription("the amount of points to remove").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("reason").setDescription("the reason to remove points").setRequired(true)
         ),
   execute: async (interaction) => {
     if (interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
       const targetUser = interaction.options.getUser("member");
       const targetMember = await interaction.guild.members.fetch(targetUser.id);
+      const reason = interaction.options.getString("reason");
+      const removePoints = interaction.options.getInteger("points");
 
       // Prevent removing points from users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
@@ -25,20 +29,29 @@ module.exports = {
         return;
       }
 
+      // Prevent removing negative points
+      if (removePoints < 0) {
+        await interaction.reply({
+          content: "You cannot remove negative points.",
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+      
       // Get previous points or default to 0
-      let prevPoints = points.get(targetUser.id);
+      let prevPoints = await interaction.client.modules.supabase.getUserPoints(targetUser.id);
       if (prevPoints === undefined) prevPoints = 0;
 
       // Subtract points from user's total
-      const points = interaction.options.getInteger("points");
-      const currentPoints = prevPoints - pointsDelta;
-      points.set(targetUser.id, currentPoints);
+      const currentPoints = prevPoints - removePoints;
+      const pointsDelta = currentPoints - prevPoints;
 
       // Send removal message to moderation channel
-      await interaction.client.modules.sendModerationMessage({
+      await interaction.client.modules.recordModerationEvent({
         targetUser,
-        action: "Remove Points",
         interaction,
+        action: "Remove Points",
+        reason,
         actionedBy: interaction.user,
         pointsDelta,
       });
