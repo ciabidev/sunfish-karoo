@@ -19,7 +19,7 @@ module.exports = async function recordModerationEvent({
     action,
     reason,
     actioned_by: actionedBy.id,
-    duration_ms: null,
+    duration_ms: durationMs,
     points_delta,
   });
 

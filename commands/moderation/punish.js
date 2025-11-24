@@ -1,13 +1,9 @@
-const {
-  PermissionsBitField,
-  MessageFlags,
-  Collection,
-} = require("discord.js");
-
+const { PermissionsBitField, MessageFlags, Collection } = require("discord.js");
 
 // get points variable from moderation.js
 const { getUserPoints } = require("../../src/modules/supabase");
 const { SlashCommandSubcommandBuilder } = require("discord.js");
+const e = require("express");
 
 module.exports = {
   data: new SlashCommandSubcommandBuilder()
@@ -46,7 +42,7 @@ module.exports = {
       const addPoints = interaction.options.getInteger("add");
       const currentPoints = prevPoints + addPoints;
       const pointsDelta = currentPoints - prevPoints;
-      
+
       // Prevent adding negative points
       if (addPoints < 0) {
         await interaction.reply({
@@ -58,26 +54,25 @@ module.exports = {
 
       let action;
       // Determine action based on point thresholds
-      if (currentPoints < 5 || prevPoints === undefined) action = "warn";
-      else if (currentPoints < 10) action = "Short Timeout";
-      else if (currentPoints < 15) action = "Medium Timeout";
-      else if (currentPoints < 20) action = "Long Timeout";
-      else if (currentPoints < 25) action = "One Day Timeout";
-      else action = "Thousand Years Timeout";
+      if (currentPoints >= 25) action = "Thousand Years Timeout";
+      else if (currentPoints >= 20) action = "One Day Timeout";
+      else if (currentPoints >= 15) action = "Long Timeout";
+      else if (currentPoints >= 10) action = "Medium Timeout";
+      else if (currentPoints >= 5) action = "Short Timeout";
+      else action = "Warning";
 
       let duration;
       const reason = interaction.options.getString("reason");
 
-      console.log(`currentPoints: ${currentPoints}, prevPoints: ${prevPoints}`);
 
       // Apply action based on determined action type
       switch (action) {
-        case "warn":
+        case "Warning":
           // Send warning DM to user
           try {
             await interaction.client.modules.recordModerationEvent({
               targetUser,
-              action: "Warning",
+              action,
               reason,
               interaction,
               pointsDelta,
@@ -100,11 +95,6 @@ module.exports = {
           duration = "1d";
           break;
         case "Thousand Years Timeout":
-          // Check if moderator has ban permissions
-          if (!interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-            await interaction.reply("You do not have permission to ban members.");
-          }
-          await interaction.reply("Banning members is not implemented yet.");
           break;
       }
 
@@ -125,6 +115,62 @@ module.exports = {
           pointsDelta,
           notifyUser: true,
         });
+      }
+
+      if (action === "Thousand Years Timeout") {
+        if (interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+          const targetUser = interaction.options.getUser("member");
+          const targetMember = await interaction.guild.members.fetch(targetUser.id);
+
+          // Prevent banning users with higher role hierarchy
+          if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
+            await interaction.reply({
+              content: `You cannot ban <@${targetUser.id}> because they are higher in the role heirarchy than you.`,
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          const reason = interaction.options.getString("reason");
+          const deleteMessages = interaction.options.getString("delete_messages");
+          // Send ban message to moderation channel
+
+          try {
+            await interaction.client.modules.sendModerationMessage({
+              targetUser,
+              action,
+              reason,
+              interaction,
+              actionedBy: interaction.user,
+            });
+
+            // Send ban DM to user
+            await interaction.client.modules.sendModerationDM({
+              targetUser,
+              guild: interaction.guild,
+              action,
+              reason,
+              actionedBy: interaction.user,
+            });
+          } catch (err) {
+            // Silently fail if message cannot be sent
+          }
+
+          // Ban the member
+          try {
+            await targetMember.ban({
+              reason,
+              deleteMessageSeconds: deleteMessages === "true" ? 604000 : 0,
+            });
+          } catch (err) {
+            console.error(err);
+            await interaction.reply({
+              content: "Failed to ban member. Check if my role is higher than the member's role.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+        }
       }
     } else {
       // User lacks timeout permission

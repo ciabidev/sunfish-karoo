@@ -72,12 +72,27 @@ async function getCases(userId) {
     return [];
   }
 
-  return data;
+  return data.sort((a, b) => b.id - a.id); // newest first
 }
 
+async function getLatestCase(userId) {
+  const { data, error } = await supabase
+    .from("moderation_cases")
+    .select("*")
+    .eq("target_user", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
 
+  if (error) {
+    console.error("Supabase getLatestCase error:", error);
+    return null;
+  }
+
+  return data[0];
+}
 module.exports = {
   getUserPoints,
   createCase,
   getCases,
+  getLatestCase,
 };

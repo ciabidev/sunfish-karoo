@@ -9,19 +9,19 @@ module.exports = async function sendModerationDM({
   actionedBy = interaction.user,
   pointsDelta = null,
 }) {
-  const fields = [
-    { name: "Action", value: action, inline: false },
-    { name: "Reason", value: reason ? reason : "No reason provided", inline: false },
-    { name: "Actioned By", value: `<@${actionedBy.id}>`, inline: false },
-    { name: "Server", value: interaction.guild.name, inline: false },
-  ];
+  let description = `
+  **Server:** ${interaction.guild.name} \n
+  **Action:** ${action} \n
+  **Actioned By:** <@${actionedBy.id}> \n
+  **Reason:** ${reason ? reason : "No reason provided"} \n
+  `;
 
   if (durationMs) {
-    fields.push({ name: "Duration", value: interaction.client.modules.formatMilliseconds(durationMs), inline: false });
+    description += `**Duration:** ${interaction.client.modules.formatMilliseconds(durationMs)}\n`;
   }
 
   if (pointsDelta) {
-    fields.push({ name: "Point Change", value: `${pointsDelta > 0 ? "+" : ""}${pointsDelta}`, inline: false });
+    description += `**Point Change:** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`;
   }
 
   try {
@@ -29,8 +29,7 @@ module.exports = async function sendModerationDM({
       embeds: [
         {
           title: `You (probably) broke a rule in ${interaction.guild.name}`,
-          description: "a moderation action was applied...",
-          fields,
+          description: `a moderation action was applied... \n ${description}`,
           color: 0xff0000,
         },
       ],
