@@ -16,10 +16,19 @@ module.exports = {
   execute: async (interaction) => {
     if (interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
       const targetUser = interaction.options.getUser("member");
-      const targetMember = await interaction.guild.members.fetch(targetUser.id);
       const reason = interaction.options.getString("reason");
       const removePoints = interaction.options.getInteger("points");
+      try {
+        await interaction.guild.members.fetch(targetUser.id);
+      } catch (error) {
+        await interaction.reply({
+          content: `<@${targetUser.id}> is not in the server.`,
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
 
+      const targetMember = await interaction.guild.members.fetch(targetUser.id);
       // Prevent removing points from users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
         await interaction.reply({
