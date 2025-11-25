@@ -20,6 +20,17 @@ module.exports = {
       });
     }
 
+    // check if the bot has permission to ban in the channel
+    if (
+      !interaction.channel
+        .permissionsFor(interaction.guild.members.me)
+        .has(PermissionsBitField.Flags.BanMembers)
+    ) {
+      return interaction.reply({
+        content: "I do not have permission to unban users in this channel.",
+        flags: MessageFlags.Ephemeral,
+      });
+    }
     const targetUserId = interaction.options.getUser("user_id"); // returns User or null
     const reason = interaction.options.getString("reason");
 
@@ -34,31 +45,12 @@ module.exports = {
       });
     }
 
-    // Send moderation log / DM
-    try {
-      await interaction.client.modules.sendModerationMessage({
-        targetUser: targetUserId,
-        action: "Unban",
-        reason,
-        interaction,
-        actionedBy: interaction.user,
-      });
-
-      // bots sometimes cant send messages to users not in the guild
-    } catch {}
-
-    try {
-      await interaction.client.modules.sendModerationDM({
-        targetUser: targetUserId,
-        guild: interaction.guild,
-        action: "Unban",
-        reason,
-        actionedBy: interaction.user,
-      });
-    } catch {
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: `Failed to messsage <@${targetUserId}` });
-      }
-    }
+    await interaction.client.modules.recordModerationEvent({
+      targetUser: targetUserId,
+      action: "Unban",
+      reason,
+      interaction,
+      actionedBy: interaction.user,
+    });
   },
 };

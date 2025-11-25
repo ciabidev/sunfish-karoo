@@ -20,6 +20,15 @@ module.exports = {
         .setName("add")
         .setDescription("the amount of points to add to this member")
         .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("delete_messages_on_ban")
+        .setDescription("whether to delete messages from the user when banned")
+        .addChoices(
+          { name: "Yes", value: "true" },
+          { name: "No", value: "false" }
+        )
     ),
   execute: async (interaction) => {
     if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
@@ -33,6 +42,29 @@ module.exports = {
           flags: MessageFlags.Ephemeral,
         });
         return;
+      }
+
+      // check if the bot has the required permissions in the channel
+      if (
+        !interaction.channel
+          .permissionsFor(interaction.guild.members.me)
+          .has(PermissionsBitField.Flags.ManageMessages)
+
+        ||
+        !interaction.channel
+          .permissionsFor(interaction.guild.members.me)
+          .has(PermissionsBitField.Flags.ModerateMembers)
+
+        ||
+        !interaction.channel
+          .permissionsFor(interaction.guild.members.me)
+          .has(PermissionsBitField.Flags.BanMembers)
+      ) {
+        await interaction.reply({
+          content:
+            "I do not have permission to moderate this channel (need Manage Messages, Timeout Members, and Ban Members permission, contact an admin).",
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       // Get previous points or default to 0
@@ -136,21 +168,14 @@ module.exports = {
           // Send ban message to moderation channel
 
           try {
-            await interaction.client.modules.sendModerationMessage({
+            await interaction.client.modules.recordModerationEvent({
               targetUser,
               action,
               reason,
               interaction,
-              actionedBy: interaction.user,
-            });
-
-            // Send ban DM to user
-            await interaction.client.modules.sendModerationDM({
-              targetUser,
-              guild: interaction.guild,
-              action,
-              reason,
-              actionedBy: interaction.user,
+              pointsDelta,
+              durationMs: 31540000000000, // actually a thousand years. though timeout is limited to 28 days so its fake lol
+              notifyUser: true,
             });
           } catch (err) {
             // Silently fail if message cannot be sent

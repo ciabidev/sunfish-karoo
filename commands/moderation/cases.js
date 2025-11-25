@@ -78,13 +78,13 @@ module.exports = {
     const message = await interaction.reply({
       components,
       flags: MessageFlags.IsComponentsV2,
-      fetchReply: true,
+      withResponse: true,
     });
 
     const collector = message.createMessageComponentCollector({
       filter: (i) => i.isButton(),
       time: 1000 * 60 * 15,
-    });
+    }); // create a collector to handle additional interaction events
 
     // handle button clicks
     collector.on("collect", async (i) => {
@@ -129,7 +129,7 @@ module.exports = {
       }
 
         await i.deferUpdate();
-        await i.message.edit({ components: [newMainText, pageSelector] });
+        await i.message.edit({ components: [newMainText, pageSelector] }); // update the message with the new components
     });
   },
 };
