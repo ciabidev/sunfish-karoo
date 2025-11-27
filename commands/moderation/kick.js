@@ -41,7 +41,7 @@ module.exports = {
       try {
         // Try to send kick DM to user first
         try {
-          await interaction.client.modules.sendModerationDM({
+          await interaction.client.modules.recordModerationEvent({
             targetUser,
             guild: interaction.guild,
             action: "Kick",
