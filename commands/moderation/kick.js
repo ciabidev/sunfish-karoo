@@ -24,6 +24,19 @@ module.exports = {
         return;
       }
 
+      // check if the bot has permission to kick in the channel
+      if (
+        !interaction.channel
+          .permissionsFor(interaction.guild.members.me)
+          .has(PermissionsBitField.Flags.KickMembers)
+      ) {
+        await interaction.reply({
+          content:
+            "I do not have permission to kick users in this channel (I need Kick Members permission).",
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
       const reason = interaction.options.getString("reason");
       try {
         // Try to send kick DM to user first
