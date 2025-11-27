@@ -1,6 +1,6 @@
 // Make sure to run node deploy-commands.js in the same directory as your bot's source code!
 
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, SlashCommandSubcommandBuilder, SlashCommandBuilder } = require('discord.js');
 const { guildId, dev_mode, productionToken, devToken, productionClientId, devClientId } = require('./config.json')
 const token = dev_mode === true ? devToken : productionToken;
 const clientId = dev_mode === true ? devClientId : productionClientId;
@@ -20,7 +20,14 @@ for (const folder of commandFolders) {
 	for (const file of commandFiles) {
 		const filePath = path.join(commandsPath, file);
 		const command = require(filePath);
-		if ('data' in command && 'execute' in command) {
+		
+		if (
+			!(command.data instanceof SlashCommandBuilder) || 
+			command.data instanceof SlashCommandSubcommandBuilder
+		) {
+			continue; // skip subcommand files
+		}
+		if ('data' in command && 'execute' in command ) {
 			commands.push(command.data.toJSON());
 		} else {
 			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
