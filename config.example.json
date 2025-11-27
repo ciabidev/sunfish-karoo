@@ -1,8 +1,10 @@
 {
-  "productionToken": "",
-  "devToken": "",
-  "productionClientId": "",
-  "devClientId": "",
-  "guildId": "",
-  "dev_mode": true
+  "productionToken": "MTMKAFREMKMKEAWKAew.wewesdf.rEXQlWEKWpjasdaerregraev3zoM0",
+  "devToken": "MTMERMRELMSGFKMGARDI4Ng.VFSNVKZN.arfhewuhNMWENWEAF",
+  "productionClientId": "463541859514988957",
+  "devClientId": "1239213956814841812",
+  "guildId": "213894182395879214",
+  "dev_mode": true,
+  "supabase_url": "https://abcdefergesfdse.supabase.co",
+  "supabase_service_key": "sb_secret_A9-5SSERSfmMERobl8E_12341267jNMM"
 }
