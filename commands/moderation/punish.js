@@ -1,9 +1,8 @@
-const { PermissionsBitField, MessageFlags, Collection } = require("discord.js");
+const { PermissionsBitField, MessageFlags } = require("discord.js");
 
 // get points variable from moderation.js
 const { getUserPoints } = require("../../src/modules/supabase");
 const { SlashCommandSubcommandBuilder } = require("discord.js");
-const e = require("express");
 
 module.exports = {
   data: new SlashCommandSubcommandBuilder()
@@ -53,7 +52,7 @@ module.exports = {
         ||
         !interaction.channel
           .permissionsFor(interaction.guild.members.me)
-          .has(PermissionsBitField.Flags.ModerateMembers)
+          .has(PermissionsBitField.Flags.ModerateMembers) // discord.js still uses ModerateMembers instead of TimeoutMembers for channel-bot permissions
 
         ||
         !interaction.channel
