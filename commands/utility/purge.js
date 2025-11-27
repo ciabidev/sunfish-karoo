@@ -55,21 +55,35 @@ module.exports = {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // repeat through all fetched until we reach 100 or the amount
-    for (let i = 0; i <= Infinity; i += 100) {
+    let deletedCount = 0;
+    for (let i = 0; i < amount; i++) {
       let fetched = await channel.messages.fetch({ limit: 100 });
-      // filter fetch to exclude the deferReply message
-      // find messages older than 2 weeks
-      if (
-        fetched !== undefined &&
-        fetched.first() !== undefined &&
-        fetched.first().createdAt.getTime() < Date.now() - 1000 * 60 * 60 * 24 * 14
-      ) {
-        hasOlderMessages = true;
-      }
       // add fetched messages to totalFetched
       totalFetched.push(...fetched);
-      await channel.bulkDelete(100);
-      if (i > amount || i > totalFetched.size) break;
+      
+      // filter out >14-day messages
+      const now = Date.now();
+      const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+
+      const deletable = fetched.filter(
+        msg => now - msg.createdTimestamp < TWO_WEEKS
+      );
+
+      if (deletable.size === 0) {
+        hasOlderMessages = true;
+        break; // nothing left we can delete
+      }
+
+      const needed = amount - deletedCount;
+      const batch = deletable.first(needed);  
+
+      try {
+        const deleted = await channel.bulkDelete(batch);
+        deletedCount += deleted.size;
+      } catch (err) {
+        console.error(err);
+        break;
+      }
     }
     await interaction.editReply({
       content: `Purged ${amount} messages from ${channel.name}. ${
