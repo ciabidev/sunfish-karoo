@@ -50,13 +50,15 @@ module.exports = {
             const userId = interaction.user.id;
             const QUESTS_FORUM_ID = "1413321056805982229"; // replace with your actual forum channel ID
             const thread = interaction.channel;
-
+            if (!thread) {
+            thread = await interaction.guild.channels.fetch(interaction.channelId);
+            }
             // Check if the command is used in the Quests forum or any of its threads
-            if (interaction.channel.parent?.id !== QUESTS_FORUM_ID) {
-                return interaction.reply({
-                    content: `❌ This command can only be used in the <#${QUESTS_FORUM_ID}> forum.`,
-                    ephemeral: true,
-                });
+            if (!thread || thread.parentId !== QUESTS_FORUM_ID) {
+              return interaction.reply({
+                content: `❌ This command can only be used in the <#${QUESTS_FORUM_ID}> forum.`,
+                ephemeral: true,
+              });
             }
 
 

@@ -34,8 +34,16 @@ module.exports = {
       await command.execute(interaction);
     } catch (error) {
       console.error(error);
+      let content = error.message;
+      if (error.stack) {
+        content += `\n\n${error.stack}`;
+      }
+
+      if (error.code === 50001) {
+        content = "I don't have access to this channel.";
+      }
       const replyContent = {
-        content: "There was an error while executing this command!",
+        content,
         flags: MessageFlags.Ephemeral,
       };
 

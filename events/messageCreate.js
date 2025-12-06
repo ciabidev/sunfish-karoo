@@ -1,10 +1,11 @@
-const { Events } = require("discord.js");
+const { Events, MessageType } = require("discord.js");
 
 module.exports = {
   name: Events.MessageCreate,
   async execute(message) {
-    if (message.author.bot) return;
     
+    const isFromFollowedServer = message.webhookId !== null;
+    console.log("isFromFollowedServer: ", isFromFollowedServer);
     const channel = message.channel;
     const WHIRLPOOL_CHANNEL_ID = "1435802233655656549"; // replace with your actual channel ID
     if (channel.id === WHIRLPOOL_CHANNEL_ID) {
@@ -27,10 +28,10 @@ module.exports = {
     if (channel.id === LUCK_CHANNEL_ID) {
         const messageContent = message.content.toLowerCase();
         // make sure the message is from a followed server
-        const isFromFollowedServer = message.webhookId !== null;
         if (!isFromFollowedServer) return;
         if (messageContent.includes("?luckparty") || messageContent.includes("luckping")) {
-            await channel.send(`luck party from followed server: <@${message.author.id}> (<@&${LUCK_PING_ROLE_ID}>)`);
+            console.log("Luck ping message received: ", messageContent);
+            await channel.send(`<@${message.author.id}> is hosting a luck party! (<@&${LUCK_PING_ROLE_ID}>) \n-# this server is a partnered server. See all partnered servers: `);
         }
     }
   },
