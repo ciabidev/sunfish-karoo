@@ -31,36 +31,40 @@ module.exports = {
 
     const pages = interaction.client.modules.chunkArray(cases, 3);
     const points = await interaction.client.modules.supabase.getUserPoints(targetUser.id);
-    let currentPage = 0;
+    let pageIndex = 0;
 
-    // Build initial page
-    const mainText = new ContainerBuilder().addTextDisplayComponents(
-      (t) => t.setContent(`## Moderation Cases for <@${targetUser.id}>`),
-      (t) => t.setContent(`**Points:** ${points}\n`)
-    );
+    function renderPage() {
+      const page = pages[pageIndex];
 
-    for (const caseData of pages[currentPage]) {
-      const action = caseData.action;
-      const reason = caseData.reason;
-      const actionedById = caseData.actioned_by;
-      const durationMs = caseData.duration_ms;
-      const pointsDelta = caseData.points_delta;
-      const caseId = caseData.id;
-      const formattedDuration = interaction.client.modules.formatMilliseconds(durationMs);
-      const dateUnix = Math.floor(new Date(caseData.created_at).getTime() / 1000);
-
-      mainText.addTextDisplayComponents(
-        (t) => t.setContent(`### ${action} | case #${caseId}`),
-        (t) => t.setContent(`Actioned by <@${actionedById}> <t:${dateUnix}:R>`),
-        (t) => t.setContent(`**Reason: ** ${reason ? reason : "No reason provided"}\n`),
-        ...(durationMs ? [(t) => t.setContent(`**Duration: ** ${formattedDuration}\n`)] : []),
-        (t) => t.setContent(`**Point Change: ** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`)
+      const container = new ContainerBuilder().addTextDisplayComponents(
+        (t) => t.setContent(`## Moderation Cases for <@${targetUser.id}> `),
+        (t) => t.setContent(`**Points:** ${points}\n**User ID:** ${targetUser.id}\n`)
       );
 
-      mainText.addSeparatorComponents((separator) =>
-        separator.setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-      );
+      for (const caseData of page) {
+        const { action, reason, actioned_by, duration_ms, points_delta, id, created_at } = caseData;
+
+        const dateUnix = Math.floor(new Date(created_at).getTime() / 1000);
+        const duration = duration_ms ? interaction.client.modules.formatMilliseconds(duration_ms) : null;
+
+        container.addTextDisplayComponents(
+          (t) => t.setContent(`### ${action} | case #${id}`),
+          (t) => t.setContent(`Actioned by <@${actioned_by}> (${actioned_by}) <t:${dateUnix}:R>`),
+          (t) => t.setContent(`**Reason:** ${reason || "No reason provided"}`),
+          ...(duration ? [(t) => t.setContent(`**Duration:** ${duration}`)] : []),
+          (t) => t.setContent(`**Point Change:** ${points_delta > 0 ? "+" : ""}${points_delta}\n`)
+        );
+
+        container.addSeparatorComponents((s) =>
+          s.setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+        );
+      }
+
+      return container;
     }
+    const mainText = renderPage();
+
+  
 
     // create buttons
     const previousPageButton = new ButtonBuilder()
@@ -91,46 +95,19 @@ module.exports = {
 
   collector.on('collect', async (i) => {
     if (i.customId === "previous-page") {
-      currentPage--;
-      if (currentPage < 0) {
-        currentPage = pages.length - 1;
+      pageIndex--;
+      if (pageIndex < 0) {
+        pageIndex = pages.length - 1;
       }
     } else if (i.customId === "next-page") {
-      currentPage++;
-      if (currentPage >= pages.length) {
-        currentPage = 0;
+      pageIndex++;
+      if (pageIndex >= pages.length) {
+        pageIndex = 0;
       }
     }
 
-    const newMainText = new ContainerBuilder().addTextDisplayComponents(
-      (t) => t.setContent(`## Moderation Cases for <@${targetUser.id}>`),
-      (t) => t.setContent(`**Points:** ${points}\n`)
-    );
-
-    for (const caseData of pages[currentPage]) {
-      const action = caseData.action;
-      const reason = caseData.reason;
-      const actionedById = caseData.actioned_by;
-      const durationMs = caseData.duration_ms;
-      const pointsDelta = caseData.points_delta;
-      const caseId = caseData.id;
-      const formattedDuration = interaction.client.modules.formatMilliseconds(durationMs);
-      const dateUnix = Math.floor(new Date(caseData.created_at).getTime() / 1000);
-
-      newMainText.addTextDisplayComponents(
-        (t) => t.setContent(`### ${action} | case #${caseId}`),
-        (t) => t.setContent(`Actioned by <@${actionedById}> <t:${dateUnix}:R>`),
-        (t) => t.setContent(`**Reason: ** ${reason ? reason : "No reason provided"}\n`),
-        ...(durationMs ? [(t) => t.setContent(`**Duration: ** ${formattedDuration}\n`)] : []),
-        (t) => t.setContent(`**Point Change: ** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`)
-      );
-
-      newMainText.addSeparatorComponents((separator) =>
-        separator.setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-      );
-    }
-
-    await i.update({ components: [newMainText, pageSelector] }); // update the message with the new components
+    const updatedMainText = renderPage();
+    await i.update({ components: [updatedMainText, pageSelector] }); // update the message with the new components
   });
 
   },

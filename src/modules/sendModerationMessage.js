@@ -22,7 +22,7 @@ module.exports = async function sendModerationMessage({
   const mainText = new ContainerBuilder()
     .addTextDisplayComponents(
       (t) => t.setContent(`### ${action} | case #${currentCaseId}`),
-      (t) => t.setContent(`${action} to <@${targetUser.id}> by <@${actionedBy.id}>`),
+      (t) => t.setContent(`${action} to <@${targetUser.id}> (${targetUser.id}) by <@${actionedBy.id}> (${actionedBy.id})\n`),
       (t) => t.setContent(`**Reason: **${reason ? reason : "No reason provided"}\n`),
       ...(durationMs ? [(t) => t.setContent(`**Duration: **${formattedDuration}\n`)] : [])
     )
