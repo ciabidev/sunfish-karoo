@@ -43,7 +43,7 @@ module.exports = {
         content = "I don't have access to this channel.";
       }
       const replyContent = {
-        content,
+        content: "### Internal Error \n **Please report this to <@968622168302833735>** immediately \n ```" + content + "```",
         flags: MessageFlags.Ephemeral,
       };
 
