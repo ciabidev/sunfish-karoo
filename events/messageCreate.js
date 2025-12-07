@@ -1,9 +1,9 @@
-const { Events, MessageType } = require("discord.js");
+const { Events, MessageFlags } = require("discord.js");
 
 module.exports = {
   name: Events.MessageCreate,
   async execute(message) {
-    const isFromFollowedServer = message.webhookId !== null;
+    const isFromFollowedServer = message.flags.has(MessageFlags.IsCrosspost);
     console.log("isFromFollowedServer: ", isFromFollowedServer);
     const channel = message.channel;
     const WHIRLPOOL_CHANNEL_ID = "1435802233655656549"; // replace with your actual channel ID
