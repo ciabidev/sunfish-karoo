@@ -17,7 +17,7 @@ module.exports = async function sendModerationMessage({
     console.log("No case data found");
   }
   const currentCaseId = caseData.id;
-  
+  const dateUnix = Math.floor(new Date(interaction.createdAt).getTime() / 1000);
   const formattedDuration = interaction.client.modules.formatMilliseconds(durationMs);
   const mainText = new ContainerBuilder()
     .addTextDisplayComponents(
@@ -27,15 +27,20 @@ module.exports = async function sendModerationMessage({
       ...(durationMs ? [(t) => t.setContent(`**Duration: **${formattedDuration}\n`)] : [])
     )
 
-    .addSeparatorComponents((separator) => separator)
-
     .addTextDisplayComponents(
       ...(pointsDelta
         ? [
             (t) =>
-              t.setContent(`-# **Point Change:** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`),
+              t.setContent(`**Point Change:** ${pointsDelta > 0 ? "+" : ""}${pointsDelta}\n`),
           ]
         : [])
+    )
+
+    .addSeparatorComponents((separator) => separator)
+
+
+    .addTextDisplayComponents(
+      (t) => t.setContent(`-# <t:${dateUnix}:R>`),
     );
     
   const components = [mainText];
@@ -46,7 +51,12 @@ module.exports = async function sendModerationMessage({
     } else {
       await interaction.reply({ components, flags: MessageFlags.IsComponentsV2 });
     }
-  } else {
-    console.log("No channel or interaction provided");
-  }
+  } 
+
+  const MODLOGS_CHANNEL_ID = "1436598239087562823";
+  const modlogsChannel = interaction.guild.channels.cache.get(MODLOGS_CHANNEL_ID);
+  await modlogsChannel.send({
+    components,
+    flags: MessageFlags.IsComponentsV2,
+  })
 };
