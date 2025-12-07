@@ -28,7 +28,13 @@ module.exports = {
     }
     const targetUser = interaction.options.getUser("member");
     const cases = await interaction.client.modules.supabase.getCases(targetUser.id);
-
+    if (!cases.length) {
+      await interaction.reply({
+        content: `<@${targetUser.id}> is sweet as pie`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
     const pages = interaction.client.modules.chunkArray(cases, 3);
     const points = await interaction.client.modules.supabase.getUserPoints(targetUser.id);
     let pageIndex = 0;
