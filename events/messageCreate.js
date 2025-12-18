@@ -39,7 +39,7 @@ module.exports = {
         if (messageContent.includes("?luckparty") || messageContent.includes("luckping") || messageContent.includes("@Luck")) {
           console.log("Luck ping message received: ", messageContent);
           await channel.send(
-            `<@${message.author.id}> is hosting a luck party! <@${LUCK_PING_ROLE_ID}>${serverPartnerText}`
+            `<@${message.author.id}> is hosting a luck party! <@&${LUCK_PING_ROLE_ID}>${serverPartnerText}`
           );
         }
       }
