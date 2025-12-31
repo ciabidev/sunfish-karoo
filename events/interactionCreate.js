@@ -43,7 +43,10 @@ module.exports = {
         content = "I don't have access to this channel.";
       }
       const replyContent = {
-        content: "### Internal Error \n **Please report this to <@968622168302833735>** immediately \n ```" + content + "```",
+        content:
+          "### Internal Error \nTo report this error: https://github.com/ciabidev/sunfish-karoo/issues \n```" +
+          content +
+          "```",
         flags: MessageFlags.Ephemeral,
       };
 
