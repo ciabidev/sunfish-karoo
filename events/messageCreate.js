@@ -36,7 +36,7 @@ module.exports = {
       if (channel.id === FOLLOWED_LUCK_CHANNEL_ID) {
         const messageContent = message.content.toLowerCase();
         // make sure the message is from a followed server
-        if (messageContent.includes("?luckparty") || messageContent.includes("luckping") || messageContent.includes("@Luck")) {
+        if (messageContent.includes("?luckparty") || messageContent.includes("luckping") || messageContent.includes("@luck")) {
           console.log("Luck ping message received: ", messageContent);
           await channel.send(
             `<@${message.author.id}> is hosting a luck party! <@&${LUCK_PING_ROLE_ID}>${serverPartnerText}`
@@ -51,7 +51,7 @@ module.exports = {
         if (messageContent.includes("epiping")) {
           console.log("Epicenter ping message received: ", messageContent);
           await channel.send(
-            `<@${message.author.id}> is hosting a trip to the epicenter! <@&${EPICENTER_PING_ROLE_ID}>${serverPartnerText} `
+            `<@${mes  posage.author.id}> is hosting a trip to the epicenter! <@&${EPICENTER_PING_ROLE_ID}>${serverPartnerText} `
           );
         }
       }
