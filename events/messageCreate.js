@@ -51,7 +51,7 @@ module.exports = {
         if (messageContent.includes("epiping")) {
           console.log("Epicenter ping message received: ", messageContent);
           await channel.send(
-            `<@${mes  posage.author.id}> is hosting a trip to the epicenter! <@&${EPICENTER_PING_ROLE_ID}>${serverPartnerText} `
+            `<@${message.author.id}> is hosting a trip to the epicenter! <@&${EPICENTER_PING_ROLE_ID}>${serverPartnerText} `
           );
         }
       }
