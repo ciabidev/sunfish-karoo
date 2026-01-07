@@ -19,9 +19,9 @@ app.listen(process.env.PORT || 3000, () => {
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
-const { dev_mode, devToken, productionToken, productionClientId, devClientId } = require('./config.json');
+const { devMode, devToken, productionToken, productionClientId, devClientId } = require('./config.json');
 
-const token = dev_mode === true ? devToken : productionToken;
+const token = devMode === true ? devToken : productionToken;
 
 // Create a new client instance
 const client = new Client({

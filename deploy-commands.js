@@ -1,9 +1,9 @@
 // Make sure to run node deploy-commands.js in the same directory as your bot's source code!
 
 const { REST, Routes, SlashCommandSubcommandBuilder, SlashCommandBuilder } = require('discord.js');
-const { guildId, dev_mode, productionToken, devToken, productionClientId, devClientId } = require('./config.json')
-const token = dev_mode === true ? devToken : productionToken;
-const clientId = dev_mode === true ? devClientId : productionClientId;
+const { guildId, devMode, productionToken, devToken, productionClientId, devClientId } = require('./config.json')
+const token = devMode === true ? devToken : productionToken;
+const clientId = devMode === true ? devClientId : productionClientId;
 const fs = require('node:fs');
 const path = require('node:path');
 
