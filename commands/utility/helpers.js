@@ -13,7 +13,7 @@ module.exports = {
                 .addStringOption((option) =>
                     option
                         .setName('role')
-                        .setDescription('Select a Helper (Active) role')
+                        .setDescription('Select an Active Helper or Seal role')
                         .setAutocomplete(true)
                         .setRequired(true)
                 )
@@ -26,6 +26,8 @@ module.exports = {
         if (subcommand !== 'ping') return;
 
         const focused = interaction.options.getFocused();
+        if (!interaction.guild) return;
+
         const roles = interaction.guild.roles.cache
             .filter((role) => role.name.endsWith('Helper (Active)'))
             .map((role) => ({
@@ -53,23 +55,23 @@ module.exports = {
             if (!thread) {
             thread = await interaction.guild.channels.fetch(interaction.channelId);
             }
-            // Check if the command is used in the Quests forum or any of its threads
-            if (!thread || thread.parentId !== QUESTS_FORUM_ID) {
-              return interaction.reply({
-                content: `❌ This command can only be used in the <#${QUESTS_FORUM_ID}> forum.`,
-                ephemeral: true,
-              });
-            }
+     
 
-
-            if (!role || !role.name.endsWith('Helper (Active)')) {
+            if (!role || !role.name.endsWith('Helper (Active)') || !role.name.endsWith('Helper (Seal)')) {
                 return await interaction.reply({
-                    content: `❌ The selected role is not a valid Helper (Active) role.`,
+                    content: `❌ The selected role is not a valid Helper role.`,
                     ephemeral: true,
                 });
             }
 
-            if (userId !== thread.ownerId) {
+            if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Helper (Seal)')) {
+                return await interaction.reply({
+                    content: `You can only ping a Seal Helper role in this channel.`,
+                    ephemeral: true,
+                });
+            }
+
+            if (thread.parentId === QUESTS_FORUM_ID && userId !== thread.ownerId) {
                 return await interaction.reply({
                     content: `❌ You are not the creator of this post.`,
                     ephemeral: true,
