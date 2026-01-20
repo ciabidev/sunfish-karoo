@@ -57,7 +57,7 @@ module.exports = {
             }
      
 
-            if (!role || !role.name.endsWith('Helper (Active)') || !role.name.endsWith('Helper (Seal)')) {
+            if (!role || !role.name.endsWith('Helper (Active)') && !role.name.endsWith('Helper (Seal)')) {
                 return await interaction.reply({
                     content: `❌ The selected role is not a valid Helper role.`,
                     ephemeral: true,
