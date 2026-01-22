@@ -22,14 +22,12 @@ module.exports = {
 
     async autocomplete(interaction) {
         // Only handle /helpers ping autocomplete
-        const subcommand = interaction.options.getSubcommand();
-        if (subcommand !== 'ping') return;
+        if (interaction.options.getSubcommand() === 'ping' && interaction.guild) { 
 
         const focused = interaction.options.getFocused();
-        if (!interaction.guild) return;
 
         const roles = interaction.guild.roles.cache
-            .filter((role) => role.name.endsWith('Helper (Active)'))
+            .filter((role) => role.name.endsWith('Helper (Active)') || role.name.endsWith('Seal'))
             .map((role) => ({
                 name: role.name,
                 value: role.id,
@@ -40,7 +38,27 @@ module.exports = {
             r.name.toLowerCase().includes(focused.toLowerCase())
         );
 
+        // sort by seal and active groups 
+        filtered.sort((a, b) => {
+            if (a.name.endsWith('Helper (Active)') && !b.name.endsWith('Helper (Active)')) {
+                return 1;
+            }
+            if (!a.name.endsWith('Helper (Active)') && b.name.endsWith('Helper (Active)')) {
+                return -1;
+            }
+            if (a.name.endsWith('Seal') && !b.name.endsWith('Seal')) {
+                return 1;
+            }
+            if (!a.name.endsWith('Seal') && b.name.endsWith('Seal')) {
+                return -1;
+            }
+            return 0;
+        });
+
+        
+
         await interaction.respond(filtered.slice(0, 25)); // Discord limit
+        }
     },
 
     async execute(interaction) {
@@ -55,15 +73,29 @@ module.exports = {
             if (!thread) {
             thread = await interaction.guild.channels.fetch(interaction.channelId);
             }
-     
+            
+            console.log(role.name)
+           if (thread.parentId !== QUESTS_FORUM_ID && role.name.endsWith('Seal')) {
+             return await interaction.reply({
+               content: `❌ You can only ping a non-Seal Helper role in this channel. For help that isn't just casual, see <#1413321056805982229>`,
+               ephemeral: true,
+             });
+            }
 
-            if (!role || !role.name.endsWith('Helper (Active)') && !role.name.endsWith('Helper (Seal)')) {
+           if (thread.parentId === QUESTS_FORUM_ID && userId !== thread.ownerId) {
+             return await interaction.reply({
+               content: `❌ You are not the creator of this post.`,
+               ephemeral: true,
+             });
+           }
+
+            if (!role || !role.name.endsWith('Helper (Active)') && !role.name.endsWith('Seal')) {
                 return await interaction.reply({
                     content: `❌ The selected role is not a valid Helper role.`,
                     ephemeral: true,
                 });
             }
-
+ 
             if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Helper (Seal)')) {
                 return await interaction.reply({
                     content: `You can only ping a Seal Helper role in this channel.`,
@@ -71,13 +103,7 @@ module.exports = {
                 });
             }
 
-            if (thread.parentId === QUESTS_FORUM_ID && userId !== thread.ownerId) {
-                return await interaction.reply({
-                    content: `❌ You are not the creator of this post.`,
-                    ephemeral: true,
-                });
-            }
-
+           
             const cooldownTime = 2*(60 * 60 * 1000); // 2 hours
             const lastUsed = cooldowns.get(userId);
 
