@@ -42,29 +42,7 @@ module.exports = {
         });
         return;
       }
-
-      // check if the bot has the required permissions in the channel
-      if (
-        !interaction.channel
-          .permissionsFor(interaction.guild.members.me)
-          .has(PermissionsBitField.Flags.ManageMessages)
-
-        ||
-        !interaction.channel
-          .permissionsFor(interaction.guild.members.me)
-          .has(PermissionsBitField.Flags.ModerateMembers) // discord.js still uses ModerateMembers instead of TimeoutMembers for channel-bot permissions
-
-        ||
-        !interaction.channel
-          .permissionsFor(interaction.guild.members.me)
-          .has(PermissionsBitField.Flags.BanMembers)
-      ) {
-        return await interaction.reply({
-          content:
-            "I do not have permission to moderate this channel (need Manage Messages, Timeout Members, and Ban Members permission, contact an admin).",
-          flags: MessageFlags.Ephemeral,
-        });
-      }
+   
 
       // Get previous points or default to 0
       let prevPoints = await getUserPoints(targetUser.id);
@@ -83,6 +61,7 @@ module.exports = {
       }
 
       let action;
+      console.log(currentPoints);
       // Determine action based on point thresholds
       if (currentPoints >= 25) action = "Thousand Years Timeout";
       else if (currentPoints >= 20) action = "One Day Timeout";
@@ -165,34 +144,61 @@ module.exports = {
           const deleteMessages = interaction.options.getString("delete_messages");
           // Send ban message to moderation channel
 
-          try {
-            await interaction.client.modules.recordModerationEvent({
-              targetUser,
-              action,
-              reason,
-              interaction,
-              pointsDelta,
-              durationMs: 31540000000000, // actually a thousand years. though timeout is limited to 28 days so its fake lol
-              notifyUser: true,
-            });
-          } catch (err) {
-            // Silently fail if message cannot be sent
-          }
+          
 
           // Ban the member
           try {
+            try {
+              await interaction.client.modules.recordModerationEvent({
+                targetUser,
+                action,
+                reason,
+                interaction,
+                pointsDelta,
+                durationMs: 31540000000000, // actually a thousand years. though timeout is limited to 28 days so its fake lol
+                notifyUser: true,
+              });
+            } catch (err) {
+              //
+            }
             await targetMember.ban({
               reason,
               deleteMessageSeconds: deleteMessages === "true" ? 604000 : 0,
             });
+            
           } catch (err) {
             console.error(err);
-            await interaction.reply({
-              content: "Failed to ban member. Check if my role is higher than the member's role.",
-              flags: MessageFlags.Ephemeral,
-            });
+            if (err.code === 50013) {
+              if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({
+                  content:
+                    "I do not have permission to moderate this channel (need Manage Messages, Timeout Members, and Ban Members permission, contact an admin).",
+                  flags: MessageFlags.Ephemeral,
+                });
+              } else {
+                await interaction.reply({
+                  content:
+                    "I do not have permission to moderate this channel (need Manage Messages, Timeout Members, and Ban Members permission, contact an admin).",
+                  flags: MessageFlags.Ephemeral,
+                });
+              }
+              return;
+            }
+            if (interaction.replied || interaction.deferred) {
+              await interaction.followUp({
+                content: "Failed to ban member. Check if my role is higher than the member's role.",
+                flags: MessageFlags.Ephemeral,
+              });
+            } else {
+              await interaction.reply({
+                content: "Failed to ban member. Check if my role is higher than the member's role.",
+                flags: MessageFlags.Ephemeral,
+              });
+            }
             return;
           }
+
+          
         }
       }
     } else {

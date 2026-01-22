@@ -55,8 +55,14 @@ module.exports = async function sendModerationMessage({
 
   const MODLOGS_CHANNEL_ID = "1436598239087562823";
   const modlogsChannel = interaction.guild.channels.cache.get(MODLOGS_CHANNEL_ID);
-  await modlogsChannel.send({
+  try {
+await modlogsChannel.send({
     components,
     flags: MessageFlags.IsComponentsV2,
   })
+  }
+  catch (error) {
+    console.error(`Failed to send moderation message to modlogs channel: ${error}`);
+  }
+  
 };
