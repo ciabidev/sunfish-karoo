@@ -17,7 +17,7 @@ module.exports = {
 
       // Prevent kicking users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
-        await interaction.reply({
+       return  await interaction.reply({
           content: `You cannot kick <@${targetUser.id}> because they are higher in the role heirarchy than you.`,
           flags: MessageFlags.Ephemeral,
         });
@@ -30,7 +30,7 @@ module.exports = {
           .permissionsFor(interaction.guild.members.me)
           .has(PermissionsBitField.Flags.KickMembers)
       ) {
-        await interaction.reply({
+        return await interaction.reply({
           content:
             "I do not have permission to kick users in this channel (I need Kick Members permission).",
           flags: MessageFlags.Ephemeral,

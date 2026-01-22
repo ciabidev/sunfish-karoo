@@ -36,7 +36,7 @@ module.exports = {
 
       // Prevent moderating users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
-        await interaction.reply({
+        return await interaction.reply({
           content: `You cannot moderate <@${targetUser.id}> because they are higher in the role heirarchy than you.`,
           flags: MessageFlags.Ephemeral,
         });
@@ -59,7 +59,7 @@ module.exports = {
           .permissionsFor(interaction.guild.members.me)
           .has(PermissionsBitField.Flags.BanMembers)
       ) {
-        await interaction.reply({
+        return await interaction.reply({
           content:
             "I do not have permission to moderate this channel (need Manage Messages, Timeout Members, and Ban Members permission, contact an admin).",
           flags: MessageFlags.Ephemeral,
@@ -76,11 +76,10 @@ module.exports = {
 
       // Prevent adding negative points
       if (addPoints < 0) {
-        await interaction.reply({
+        return await interaction.reply({
           content: "You cannot add negative points.",
           flags: MessageFlags.Ephemeral,
         });
-        return;
       }
 
       let action;

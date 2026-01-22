@@ -19,8 +19,8 @@ module.exports = {
     ),
 
   execute: async (interaction) => {
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
-      await interaction.reply({
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+      return await interaction.reply({
         content:
           "You do not have permission to view cases (need Timeout Members permission, try contacting an admin if you're a moderator).",
         flags: MessageFlags.Ephemeral,
@@ -29,7 +29,7 @@ module.exports = {
     const targetUser = interaction.options.getUser("member");
     const cases = await interaction.client.modules.supabase.getCases(targetUser.id);
     if (!cases.length) {
-      await interaction.reply({
+      return await interaction.reply({
         content: `<@${targetUser.id}> is sweet as pie`,
         flags: MessageFlags.Ephemeral,
       });

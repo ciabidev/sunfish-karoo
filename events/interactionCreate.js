@@ -38,9 +38,9 @@ module.exports = {
       if (error.stack) {
         content += `\n\n${error.stack}`;
       }
-
+      
       if (error.code === 50001) {
-        content = "I don't have access to this channel.";
+        content = "I don't have access to this channel, or I can't send messages to this user.";
       }
       const replyContent = {
         content:
