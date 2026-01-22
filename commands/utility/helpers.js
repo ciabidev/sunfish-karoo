@@ -73,13 +73,20 @@ module.exports = {
             if (!thread) {
             thread = await interaction.guild.channels.fetch(interaction.channelId);
             }
-            
-            console.log(role.name)
+                  if (
+                    !role ||
+                    (!role.name.endsWith("Helper (Active)") && !role.name.endsWith("Seal"))
+                  ) {
+                    return await interaction.reply({
+                      content: `❌ The selected role is not a valid Helper role.`,
+                      ephemeral: true,
+                    });
+                  }
            if (thread.parentId !== QUESTS_FORUM_ID && role.name.endsWith('Seal')) {
              return await interaction.reply({
                content: `❌ You can only ping a non-Seal Helper role in this channel. For help that isn't just casual, see <#1413321056805982229>`,
                ephemeral: true,
-             });
+             }); 
             }
 
            if (thread.parentId === QUESTS_FORUM_ID && userId !== thread.ownerId) {
@@ -89,17 +96,12 @@ module.exports = {
              });
            }
 
-            if (!role || !role.name.endsWith('Helper (Active)') && !role.name.endsWith('Seal')) {
-                return await interaction.reply({
-                    content: `❌ The selected role is not a valid Helper role.`,
-                    ephemeral: true,
-                });
-            }
+      
  
-            if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Helper (Seal)')) {
+            if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Seal')) {
                 return await interaction.reply({
-                    content: `You can only ping a Seal Helper role in this channel.`,
-                    ephemeral: true,
+                  content: `You can only ping a Seal Helper role in this channel. For fast and informal/casual help, go to <#1463002217886908496>  `,
+                  ephemeral: true,
                 });
             }
 
