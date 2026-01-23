@@ -46,6 +46,13 @@ module.exports = {
         });
         return;
       }
+
+      if (removePoints > 25) {
+        return await interaction.reply({
+          content: "You cannot remove more than 25 points at once.",
+          flags: MessageFlags.Ephemeral,
+        });
+      }
       
       // Get previous points or default to 0
       let prevPoints = await interaction.client.modules.supabase.getUserPoints(targetUser.id);

@@ -30,7 +30,7 @@ module.exports = {
         )
     ),
   execute: async (interaction) => {
-    if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
+    if (interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
       const targetUser = interaction.options.getUser("member");
       const targetMember = await interaction.guild.members.fetch(targetUser.id);
 
@@ -56,6 +56,13 @@ module.exports = {
       if (addPoints < 0) {
         return await interaction.reply({
           content: "You cannot add negative points.",
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (addPoints > 25) {
+        return await interaction.reply({
+          content: "You cannot add more than 25 points at once.",
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -112,19 +119,38 @@ module.exports = {
         const durationMs = await interaction.client.modules.durationToMilliseconds(duration);
 
         // Timeout the member
-        await targetMember.timeout(durationMs, reason);
-
-        // Send timeout message to moderation channel
-        await interaction.client.modules.recordModerationEvent({
-          targetUser,
-          action,
-          reason,
-          durationMs,
-          interaction,
-          pointsDelta,
-          notifyUser: true,
-        });
-      }
+        try {
+          await targetMember.timeout(durationMs, reason);
+            // Send timeout message to moderation channel
+            await interaction.client.modules.recordModerationEvent({
+              targetUser,
+              action,
+              reason,
+              durationMs,
+              interaction,
+              pointsDelta,
+              notifyUser: true,
+            });
+          } catch (err) {
+            console.error(err);
+            if (err.code === 50013) {
+              if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({
+                  content:
+                    "I do not have permission to moderate this member (need Timeout Members permission, contact an admin if you're a moderator).",
+                  flags: MessageFlags.Ephemeral,
+                });
+              } else {
+                await interaction.reply({
+                  content:
+                    "I do not have permission to moderate this member (need Timeout Members permission, contact an admin if you're a moderator).",
+                  flags: MessageFlags.Ephemeral,
+                });
+              }
+              return;
+            }
+          }
+        }
 
       if (action === "Thousand Years Timeout") {
         if (interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {

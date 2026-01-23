@@ -15,11 +15,10 @@ module.exports = {
       option.setName("reason").setDescription("the reason to remove timeout").setRequired(false)
     ),
   execute: async (interaction) => {
-    if (interaction.member.permissions.has(PermissionsBitField.Flags.TimeoutMembers)) {
+    if (interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
       const targetUser = interaction.options.getUser("member");
       const targetMember = await interaction.guild.members.fetch(targetUser.id);
       const reason = interaction.options.getString("reason");
-      // Prevent removing timeouts on users with higher role hierarchy
       if (targetMember.roles.highest.position > interaction.member.roles.highest.position) {
         await interaction.reply({
           content: `You cannot remove the timeout from <@${targetUser.id}> because they are higher in the role hierarchy than you.`,
@@ -37,6 +36,8 @@ module.exports = {
         return;
       }
 
+  
+
       // Remove timeout by setting it to null
       await targetMember.timeout(null, "timeout");
 
@@ -48,7 +49,6 @@ module.exports = {
         actionedBy: interaction.user,
       });
     } else {
-      // User lacks timeout permission
       await interaction.reply({
         content: "You do not have permission to remove timeouts.",
         flags: MessageFlags.Ephemeral,
