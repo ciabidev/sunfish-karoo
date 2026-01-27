@@ -1,4 +1,4 @@
-const sendModerationDM = require("./sendModerationDm");
+const sendModerationDM = require("./sendModerationDM");
 const sendModerationMessage = require("./sendModerationMessage");
 const { createCase } = require("./supabase");
 
