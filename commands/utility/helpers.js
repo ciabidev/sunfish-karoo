@@ -25,13 +25,22 @@ module.exports = {
         if (interaction.options.getSubcommand() === 'ping' && interaction.guild) { 
 
         const focused = interaction.options.getFocused();
-
-        const roles = interaction.guild.roles.cache
-            .filter((role) => role.name.endsWith('Helper (Active)') || role.name.endsWith('Seal'))
-            .map((role) => ({
-                name: role.name,
-                value: role.id,
-            }));
+        let roles;
+        if (interaction.channel.id === '1463002217886908496') { // quick-help channel, should only show Helper (Active) roles
+            roles = interaction.guild.roles.cache
+                .filter((role) => (role.name.endsWith('Helper (Active)') && role.name !== 'Sunfish Seal'))
+                .map((role) => ({
+                    name: role.name,
+                    value: role.id,
+                }));
+        } else { // quest board, should only show Seal roles
+            roles = interaction.guild.roles.cache
+                .filter((role) => (role.name.endsWith('Seal') && role.name !== 'Sunfish Seal'))
+                .map((role) => ({
+                    name: role.name,
+                    value: role.id,
+                }));
+        }
 
         // Filter by user input
         const filtered = roles.filter((r) =>
@@ -50,7 +59,7 @@ module.exports = {
                 return 1;
             }
             if (!a.name.endsWith('Seal') && b.name.endsWith('Seal')) {
-                return -1;
+                return -1; 
             }
             return 0;
         });
