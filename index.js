@@ -19,7 +19,13 @@ app.listen(process.env.PORT || 3000, () => {
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, MessageFlags } = require('discord.js');
-const { devMode, devToken, productionToken, productionClientId, devClientId } = require('./config.json');
+
+require('dotenv').config();
+
+const devMode = process.env.DEV_MODE === "true";
+const devToken = process.env.DEV_TOKEN;
+const productionToken = process.env.PRODUCTION_TOKEN;
+
 
 const token = devMode === true ? devToken : productionToken;
 

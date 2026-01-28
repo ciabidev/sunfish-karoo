@@ -1,6 +1,9 @@
 const { createClient } = require("@supabase/supabase-js");
-const {supabase_url, supabase_service_key} = require("../../config.json"); // adjust path if needed
 
+require("dotenv").config();
+
+const supabase_url = process.env.SUPABASE_URL;
+const supabase_service_key = process.env.SUPABASE_SERVICE_KEY;
 
 if (!supabase_url || !supabase_service_key) {
   throw new Error("Supabase config missing in config.json");
