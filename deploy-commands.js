@@ -9,7 +9,7 @@ const devToken = process.env.DEV_TOKEN;
 const productionToken = process.env.PRODUCTION_TOKEN;
 const productionClientId = process.env.PRODUCTION_CLIENT_ID;
 const devClientId = process.env.DEV_CLIENT_ID;
-
+const guildId = process.env.GUILD_ID;
 const token = devMode === true ? devToken : productionToken;
 const clientId = devMode === true ? devClientId : productionClientId;
 const fs = require('node:fs');
