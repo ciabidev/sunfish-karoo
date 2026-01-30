@@ -33,10 +33,6 @@ module.exports = {
     -------------------- */
 
     // check if ?luckping or luckping is sent in the normal luck  channel
-
-    /* -------------------
-    Followed Luck Channel
-    -------------------- */
     if (channel.id === NORMAL_LUCK_CHANNEL_ID) {
       if (message.content.toLowerCase().includes("?luckping")) {
         // check if the user has the luck host role
@@ -52,6 +48,8 @@ module.exports = {
     // check if ?luckping or luckping is sent in the followed luck channel
     const serverPartnerText = `\n-# this host is part of our <#1393424277180776619>`;
     if (isFromFollowedServer) {
+      const followedPingsEnabled = process.env.FOLLOWED_PINGS_ENABLED === "true";
+      if (!followedPingsEnabled) return;
       console.log("Received message from followed server: ", message.content);
 
       if (channel.id === FOLLOWED_LUCK_CHANNEL_ID) {
