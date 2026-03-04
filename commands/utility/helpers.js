@@ -107,12 +107,12 @@ module.exports = {
 
       
  
-            if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Seal')) {
-                return await interaction.reply({
-                  content: `You can only ping a Seal Helper role in this channel. For fast and informal/casual help, go to <#1463002217886908496>  `,
-                  ephemeral: true,
-                });
-            }
+            // if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Seal')) {
+            //     return await interaction.reply({
+            //       content: `You can only ping a Seal Helper role in this channel. For fast and informal/casual help, go to <#1463002217886908496>  `,
+            //       ephemeral: true,
+            //     });
+            // } // add this when we actually get Seal helpers
 
            
             const cooldownTime = 2*(60 * 60 * 1000); // 2 hours
