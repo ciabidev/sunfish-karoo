@@ -6,6 +6,6 @@ module.exports = {
     const CHANNEL_ID = "1393752798625140757";
     const channel = member.guild.channels.cache.get(CHANNEL_ID);
     if (!channel) return;
-    await channel.send(`➡️ Welcome ${member} to Sunfish Village! \n-# we now have ${member.guild.memberCount} members`);
+    await channel.send(`➡️ Welcome ${member} to Sunfish Village! Go to <#1478565020194443265> to find or create Raids and Parties\n-# we now have ${member.guild.memberCount} members`);
   },
 };
