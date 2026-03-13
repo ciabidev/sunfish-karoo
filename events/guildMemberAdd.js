@@ -9,7 +9,7 @@ module.exports = {
     const channel = member.guild.channels.cache.get(CHANNEL_ID);
     if (!channel) return;
     await channel.send(
-      `➡️ <@&${WELCOME_ROLE_ID}> Welcome ${member} to Sunfish Village! Please verify in <#1393748197117005958> to see all channels. \n-# we now have ${member.guild.memberCount} members`,
+      `<@&${WELCOME_ROLE_ID}> ➡️ Welcome ${member} to Sunfish Village! Go to <#1478565020194443265> to find or create Raids and Parties \n-# we now have ${member.guild.memberCount} members`,
     );
   },
 };
