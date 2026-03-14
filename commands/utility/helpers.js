@@ -26,21 +26,28 @@ module.exports = {
 
         const focused = interaction.options.getFocused();
         let roles;
-        if (interaction.channel.id === '1463002217886908496') { // quick-help channel, should only show Helper (Active) roles
-            roles = interaction.guild.roles.cache
-                .filter((role) => (role.name.endsWith('Helper (Active)') && role.name !== 'Sunfish Seal'))
-                .map((role) => ({
-                    name: role.name,
-                    value: role.id,
-                }));
-        } else { // quest board, should only show Seal roles
-            roles = interaction.guild.roles.cache
-                .filter((role) => (role.name.endsWith('Seal') && role.name !== 'Sunfish Seal'))
-                .map((role) => ({
-                    name: role.name,
-                    value: role.id,
-                }));
-        }
+
+        roles = interaction.guild.roles.cache.filter((role) => role.name.endsWith("Helper (Active)") && role.name !== "Sunfish Seal")
+        .map((role) => ({
+            name: role.name,
+            value: role.id,
+        }));
+
+        // if (interaction.channel.id === '1463002217886908496') { // quick-help channel, should only show Helper (Active) roles
+        //     roles = interaction.guild.roles.cache
+        //         .filter((role) => (role.name.endsWith('Helper (Active)') && role.name !== 'Sunfish Seal'))
+        //         .map((role) => ({
+        //             name: role.name,
+        //             value: role.id,
+        //         }));
+        // } else { // quest board, should only show Seal roles
+        //     roles = interaction.guild.roles.cache
+        //         .filter((role) => (role.name.endsWith('Seal') && role.name !== 'Sunfish Seal'))
+        //         .map((role) => ({
+        //             name: role.name,
+        //             value: role.id,
+        //         }));
+        // } // we will add this when we actually get Seal helpers
 
         // Filter by user input
         const filtered = roles.filter((r) =>
@@ -112,7 +119,7 @@ module.exports = {
             //       content: `You can only ping a Seal Helper role in this channel. For fast and informal/casual help, go to <#1463002217886908496>  `,
             //       ephemeral: true,
             //     });
-            // } // add this when we actually get Seal helpers
+            // } // we will add this when we actually get Seal helpers
 
            
             const cooldownTime = 2*(60 * 60 * 1000); // 2 hours
