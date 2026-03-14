@@ -1,5 +1,5 @@
 const { createClient } = require("@supabase/supabase-js");
-
+const { MessageFlags } = require("discord.js");
 require("dotenv").config();
 
 const supabase_url = process.env.SUPABASE_URL;
@@ -93,9 +93,109 @@ async function getLatestCase(userId) {
 
   return data[0];
 }
+
+async function updateFestivalScore(userId, postId, type) {
+  const { data: existing, error: selectError } = await supabase
+    .from("festival_scores")
+    .select("score, post_ids")
+    .eq("user", userId)
+    .single();
+  
+  // check if the postId was already approved/denied. if so, dont add or remove anything and return "Already approved/denied"\
+
+  if (existing && existing.post_ids.includes(postId)) {
+    return "Already approved/denied";
+  }
+  const delta = type === "approve" ? 1 : 0;
+
+  if (selectError && selectError.code !== 'PGRST116') { // PGRST116 is not found
+    console.error("Supabase updateFestivalScore select error:", selectError);
+    return null;
+  }
+
+  if (existing) {
+    // Update existing
+    const newScore = existing.score + delta;
+    const newPostIds = [...existing.post_ids, postId];
+    const { data, error } = await supabase
+      .from("festival_scores")
+      .update({ score: newScore, post_ids: newPostIds })
+      .eq("user", userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase updateFestivalScore update error:", error);
+      return null;
+    }
+    return data;
+  } else {
+    // Insert new
+    const { data, error } = await supabase
+      .from("festival_scores")
+      .insert({ user: userId, score: delta, post_ids: [postId] })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase updateFestivalScore insert error:", error);
+      return null;
+    }
+    return data;
+  }
+}
+
+async function getFestivalTop(limit = 10) {
+  const { data, error } = await supabase
+    .from("festival_scores")
+    .select("user, score")
+    .order("score", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Supabase getFestivalTop error:", error);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+async function getFestivalUser(userId) {
+  const { data, error } = await supabase
+    .from("festival_scores")
+    .select("user, score")
+    .eq("user", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Supabase getFestivalUser error:", error);
+    return null;
+  }
+
+  return data ?? null;
+}
+
+async function getFestivalRank(userId, userScore) {
+  const { count, error } = await supabase
+    .from("festival_scores")
+    .select("user", { count: "exact", head: true })
+    .gt("score", userScore);
+
+  if (error) {
+    console.error("Supabase getFestivalRank error:", error);
+    return null;
+  }
+
+  return (count ?? 0) + 1;
+}
+
 module.exports = {
   getUserPoints,
   createCase,
   getCases,
   getLatestCase,
+  updateFestivalScore,
+  getFestivalTop,
+  getFestivalUser,
+  getFestivalRank,
 };
