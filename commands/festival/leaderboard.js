@@ -53,6 +53,7 @@ module.exports = {
     return interaction.editReply({
       components: [container],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
   },
 };
