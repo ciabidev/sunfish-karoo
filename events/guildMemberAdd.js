@@ -5,11 +5,12 @@ module.exports = {
   async execute(member) {
     const CHANNEL_ID = "1393752798625140757";
     const WELCOME_ROLE_ID = "1481829069422067712";
-    const VERIFY_CHANNEL_ID = "1393752798625140757";
+    const VERIFY_CHANNEL_ID = "1393748197117005958";
     const channel = member.guild.channels.cache.get(CHANNEL_ID);
+
     if (!channel) return;
     await channel.send(
-      `<@&${WELCOME_ROLE_ID}> ➡️ Welcome ${member} #${member.guild.memberCount} to Sunfish Village! Please <#${VERIFY_CHANNEL_ID}> to gain access to the rest of the server>`,
+      `<@&${WELCOME_ROLE_ID}> ➡️ Welcome ${member} to Sunfish Village! Please check <#${VERIFY_CHANNEL_ID}> to gain access to the rest of the server`,
     );
   },
 };
