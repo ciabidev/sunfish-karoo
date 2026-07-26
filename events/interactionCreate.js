@@ -58,7 +58,7 @@ module.exports = {
       const member = await interaction.guild.members.fetch(interaction.user.id);
       if (member.roles.cache.has(process.env.FESTIVAL_MANAGER_ROLE_ID)) {
         if (action === "approve_log") {
-          let data = await interaction.client.modules.supabase.updateFestivalScore(interaction.user.id, extra, "add");
+          let data = await interaction.client.modules.database.updateFestivalScore(interaction.user.id, extra, "add");
           if (data === "Already approved/denied") {
             await interaction.reply({
               content: `This festival log has already been approved/denied.`,
@@ -71,7 +71,7 @@ module.exports = {
             flags: MessageFlags.Ephemeral,
           });
         } else if (action === "remove_log") {
-          let data = await interaction.client.modules.supabase.updateFestivalScore(interaction.user.id, extra, "remove");
+          let data = await interaction.client.modules.database.updateFestivalScore(interaction.user.id, extra, "remove");
           
           if (data === "Already approved/denied") {
             await interaction.reply({
@@ -86,7 +86,7 @@ module.exports = {
           });
         }
         // get and edit the festival log message to include APPROVED/DENIED
-        const message = await interaction.client.channels.cache.get(process.env.FESTIVAL_LOG_CHANNEL_ID).messages.fetch(extra);
+        const message = await interaction.client.channels.cache.get(process.env.FESTIVAL_CHANNEL_ID).messages.fetch(extra);
         if (!message) {
           await interaction.reply({
             content: `Failed to find festival log message with ID ${extra}.`,

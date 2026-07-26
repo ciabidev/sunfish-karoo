@@ -33,22 +33,6 @@ module.exports = {
             value: role.id,
         }));
 
-        // if (interaction.channel.id === '1463002217886908496') { // quick-help channel, should only show Helper (Active) roles
-        //     roles = interaction.guild.roles.cache
-        //         .filter((role) => (role.name.endsWith('Helper (Active)') && role.name !== 'Sunfish Seal'))
-        //         .map((role) => ({
-        //             name: role.name,
-        //             value: role.id,
-        //         }));
-        // } else { // quest board, should only show Seal roles
-        //     roles = interaction.guild.roles.cache
-        //         .filter((role) => (role.name.endsWith('Seal') && role.name !== 'Sunfish Seal'))
-        //         .map((role) => ({
-        //             name: role.name,
-        //             value: role.id,
-        //         }));
-        // } // we will add this when we actually get Seal helpers
-
         // Filter by user input
         const filtered = roles.filter((r) =>
             r.name.toLowerCase().includes(focused.toLowerCase())
@@ -84,7 +68,7 @@ module.exports = {
             const roleId = interaction.options.getString('role', true);
             const role = interaction.guild.roles.cache.get(roleId);
             const userId = interaction.user.id;
-            const QUESTS_FORUM_ID = "1413321056805982229"; // replace with your actual forum channel ID
+            const QUESTS_FORUM_ID = process.env.QUESTS_FORUM_ID;
             const thread = interaction.channel;
             if (!thread) {
             thread = await interaction.guild.channels.fetch(interaction.channelId);
@@ -100,7 +84,7 @@ module.exports = {
                   }
            if (thread.parentId !== QUESTS_FORUM_ID && role.name.endsWith('Seal')) {
              return await interaction.reply({
-               content: `❌ You can only ping a non-Seal Helper role in this channel. For help that isn't just casual, see <#1413321056805982229>`,
+               content: `❌ You can only ping a non-Seal Helper role in this channel. For help that isn't just casual, see <#${QUESTS_FORUM_ID}>`,
                ephemeral: true,
              }); 
             }
@@ -114,14 +98,6 @@ module.exports = {
 
       
  
-            // if (thread.parentId === QUESTS_FORUM_ID && !role.name.endsWith('Seal')) {
-            //     return await interaction.reply({
-            //       content: `You can only ping a Seal Helper role in this channel. For fast and informal/casual help, go to <#1463002217886908496>  `,
-            //       ephemeral: true,
-            //     });
-            // } // we will add this when we actually get Seal helpers
-
-           
             const cooldownTime = 2*(60 * 60 * 1000); // 2 hours
             const lastUsed = cooldowns.get(userId);
 

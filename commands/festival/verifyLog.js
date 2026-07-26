@@ -9,7 +9,7 @@ module.exports = {
     ),
   execute: async (interaction) => {
     const FESTIVAL_MANAGER_ROLE_ID = process.env.FESTIVAL_MANAGER_ROLE_ID;
-    const FESTIVAL_CHANNEL_ID = process.env.FESTIVAL_LOG_CHANNEL_ID;
+    const FESTIVAL_CHANNEL_ID = process.env.FESTIVAL_CHANNEL_ID;
     const APPROVED_TAG_ID = process.env.FESTIVAL_APPROVED_TAG_ID;
     const DENIED_TAG_ID = process.env.FESTIVAL_DENIED_TAG_ID;
     if (!interaction.member.roles.cache.has(FESTIVAL_MANAGER_ROLE_ID)) {
@@ -32,9 +32,9 @@ module.exports = {
     try {
       const appliedTagIds = post.appliedTags.map((tag) => tag.id);
       const isApproved = appliedTagIds.includes(APPROVED_TAG_ID) && !appliedTagIds.includes(DENIED_TAG_ID);
-      const type = interaction.options.getString("type") ?? isApproved ? "approve" : "deny";
+      const type = interaction.options.getString("type") ?? (isApproved ? "approve" : "deny");
       
-      let data = await interaction.client.modules.supabase.updateFestivalScore(targetUserId, postId, type);
+      let data = await interaction.client.modules.database.updateFestivalScore(targetUserId, postId, type);
     
       if (data === "Already approved/denied") {
         await interaction.reply({

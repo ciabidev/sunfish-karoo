@@ -12,18 +12,20 @@ Its not public rn so you'll have to self host it:
 2. Install the dependencies with `npm install`
     - make sure you have node installed (latest)
 
-## 2. configuring config.json
-1. Change the config.example.json file to your own values and rename it to config.json
+## 2. Configure the environment
 
-### supabase
- create a supabase account and project. 
-- **Supabase URL:** go to Connect -> App Framework -> copy the url
-- **Supabase Service Key:** go to Project Settings -> API Keys -> New Secret Key -> Copy the key
-- run init.sql in your db (go to SQL Editor tab -> paste the code and run)
+Copy `.env.example` to `.env` and fill in the values.
+
+### MongoDB
+
+Create a MongoDB Atlas project and database.
+
+- **MongoDB URI:** copy the connection string from Atlas and set `MONGODB_URI`.
+- **Database name:** optionally set `MONGODB_DATABASE`; otherwise the bot uses `development` or `production` based on `DEV_MODE`.
 ### discord
 create a testing bot and a main bot in https://discord.com/developers/applications.
-1. enable the intents for guild messages, guild members, and message content ("Bot" tab)
-2. go to Installation tab -> set to use Discord Provided Link -> enable all permissions and invite to ur server
+1. enable the guild members intent ("Bot" tab)
+2. go to Installation tab, set it to use a Discord Provided Link, choose only the permissions needed by the utility and festival features, and invite it to your server
 3. go to your discord settings and enable developer mode
 
 - **guildId:** right click on ur server name -> Copy Server ID
@@ -44,32 +46,21 @@ Do not have multiple web services under a single workspace or you'll hit usage l
 1. create a new workspace
 2. create a web service and import from your cloned github repo
 3. set build command to `npm install` and start command to `npm run dev`
-4. scroll all the way to the bottom and add the config.json as a secret file
+4. Add the values from `.env.example` as environment variables.
 5. deploy
 
 
 ### for other services
 Haven't had much experience with others so here's a general guide:
 1. import from github
-2. add config.json as a secret file
+2. Add the values from `.env.example` as environment variables.
 3. set build command to `npm install` and start command to `npm run dev`
 4. deploy
 ## Development
-You may need to change channel ids and role ids in helpers.js and messageCreate.js
+You may need to change channel IDs and role IDs in `helpers.js` and the member join/leave event files.
 run `node deploy-commands.js` in the same directory as your bot's source code.
 
 # Commands
-
-## Moderation
-
-- ban
-- kick
-- mute
-- removepoints
-- removetimeout
-- punish
-- unban
-- unmute
 
 ## Utility
 

@@ -12,8 +12,8 @@ module.exports = {
   execute: async (interaction) => {
     await interaction.deferReply();
 
-    const supabase = interaction.client.modules.supabase;
-    const top = await supabase.getFestivalTop(10);
+    const database = interaction.client.modules.database;
+    const top = await database.getFestivalTop(10);
 
     const lines = [];
     if (top.length === 0) {
@@ -34,12 +34,12 @@ module.exports = {
     }
 
     const currentUserId = interaction.user.id;
-    const currentEntry = await supabase.getFestivalUser(currentUserId);
+    const currentEntry = await database.getFestivalUser(currentUserId);
     const currentScore = currentEntry?.score ?? 0;
     const isInTop = top.some((entry) => entry.user === currentUserId);
 
     if (!isInTop) {
-      const rank = await supabase.getFestivalRank(currentUserId, currentScore);
+      const rank = await database.getFestivalRank(currentUserId, currentScore);
       lines.push("...");
       lines.push(`${rank ?? "?"}. <@${currentUserId}> — ${currentScore}`);
     }

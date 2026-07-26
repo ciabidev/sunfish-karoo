@@ -14,7 +14,7 @@ module.exports = {
       .setName("festival")
       .setDescription("Utility commands for the Harbor Festival");
 
-    const dir = __dirname; // commands/moderation
+    const dir = __dirname;
     const files = fs
       .readdirSync(dir)
       .filter((f) => f !== "main.js" && f.endsWith(".js"));
