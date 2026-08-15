@@ -1,4 +1,5 @@
-const { Events, MessageFlags, ModalBuilder, TextInputBuilder, ActionRowBuilder, ButtonBuilder, EmbedBuilder } = require("discord.js");
+const { Events, MessageFlags } = require("discord.js");
+const { getSailorsLodgeHostId } = require("../commands/context/logParty.js");
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -150,11 +151,30 @@ module.exports = {
         const screenshotFiles = interaction.fields.getUploadedFiles("screenshot");
         const [, channelId, messageId] = interaction.customId.split(":");
 
-        const hostMention = `<@${interaction.user.id}>`;
-
         try {
           const channel = await interaction.client.channels.fetch(channelId);
           const targetMessage = await channel.messages.fetch(messageId);
+          const hostId = getSailorsLodgeHostId(targetMessage);
+
+          if (!hostId) {
+            return await interaction.reply({
+              content: "This isn't a valid Sailor's Lodge party ping.",
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+          if (hostId !== interaction.user.id) {
+            return await interaction.reply({
+              content: "You can only log your own party.",
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+          if (await interaction.client.modules.database.isPartyMessageLogged(targetMessage.id)) {
+            return await interaction.reply({
+              content: "This party has already been logged.",
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+
           const durationMinutes = (Date.now() - new Date(targetMessage.createdAt)) / 1000 / 60;
           const isSuspicious = durationMinutes < 10;
 
@@ -163,8 +183,13 @@ module.exports = {
           
 
           const postData = {
-            content: `**${activity}** hosted by <@${interaction.user.id}> for ${durationMinutes.toFixed(1)} minutes${isSuspicious ? `\n<@&${process.env.FESTIVAL_MANAGER_ROLE_ID}> this seems suspicious... please review.\n-# Reason: Suspiciously short duration` : ``}`,
+            content: `**${activity}** hosted by <@${interaction.user.id}> for ${durationMinutes.toFixed(1)} minutes - ${targetMessage.url}${isSuspicious ? `\n> <@&${process.env.FESTIVAL_MANAGER_ROLE_ID}> this seems suspicious... please review.\n> * -# Reason: Suspiciously short duration` : ``}`,
             components: [],
+            allowedMentions: {
+              parse: [],
+              users: [interaction.user.id],
+              roles: isSuspicious ? [process.env.FESTIVAL_MANAGER_ROLE_ID] : [],
+            },
           };
 
           // Prepare files for upload
@@ -189,6 +214,7 @@ module.exports = {
             // Create forum post
             const thread = await logChannel.threads.create({
               name: activity.length > 100 ? `${activity.slice(0, 97)}...` : activity,
+              appliedTags: isSuspicious ? [] : [process.env.FESTIVAL_APPROVED_TAG_ID],
               message: { ...postData, files },
             });
 

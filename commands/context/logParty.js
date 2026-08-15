@@ -1,5 +1,14 @@
 const { ContextMenuCommandBuilder, ApplicationCommandType, MessageFlags, ModalBuilder, ActionRowBuilder, TextInputBuilder, LabelBuilder, FileUploadBuilder } = require("discord.js");
 
+function getSailorsLodgeHostId(message) {
+  if (!process.env.SAILORS_LODGE_ID || message.author.id !== process.env.SAILORS_LODGE_ID) return null;
+
+  const pingMatch = message.content.match(
+    /^(?:<@&\d+>\s*)?\*\*[^*\r\n]+\*\*\s+ping\s+(?:triggered\s+by|from)\s+<@!?(\d+)>/i
+  );
+  return pingMatch?.[1] ?? null;
+}
+
 module.exports = {
   data: new ContextMenuCommandBuilder()
     .setName("Log Party")
@@ -17,9 +26,8 @@ module.exports = {
       return;
     }
 
-    // verify it's from Sailor's Lodge
-    const sailorsLodgeId = process.env.SAILORS_LODGE_ID;
-    if (!sailorsLodgeId || targetMessage.author.id !== sailorsLodgeId) {
+    const hostId = getSailorsLodgeHostId(targetMessage);
+    if (!hostId) {
       await interaction.reply({
         content: "This isn't a valid Sailor's Lodge party ping.",
         flags: MessageFlags.Ephemeral,
@@ -37,20 +45,13 @@ module.exports = {
       return;
     }
 
-    // verify the user right-clicking is mentioned in the message (they are the host)
-    const mentionRegex = new RegExp(`<@!?${interaction.user.id}>`);
-    if (!mentionRegex.test(targetMessage.content)) {
+    if (hostId !== interaction.user.id) {
       await interaction.reply({
         content: "You can only log your own party.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
-
-    // get duration from ping timestamp to now
-    const startTime = new Date(targetMessage.createdAt);
-    const endTime = new Date();
-    const durationMinutes = (endTime - startTime) / 1000 / 60;
 
     // show modal with Activity and Screenshot fields
     const modal = new ModalBuilder()
@@ -80,4 +81,5 @@ module.exports = {
 
     await interaction.showModal(modal);
   },
+  getSailorsLodgeHostId,
 };

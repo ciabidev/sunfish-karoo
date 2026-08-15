@@ -3,9 +3,13 @@ const { PermissionsBitField, ChannelType, MessageFlags, SlashCommandSubcommandBu
 module.exports = {
   data: new SlashCommandSubcommandBuilder()
     .setName("verifylog")
-    .setDescription("Approve or deny a festival log")
+    .setDescription("Approve, deny, or remove a point from a festival log")
     .addStringOption((option) =>
-      option.setName("type").setDescription("Approve or deny").setRequired(false).addChoices({ name: "Approve", value: "approve" }, { name: "Deny", value: "deny" })
+      option.setName("type").setDescription("Approve, deny, or remove a point").setRequired(false).addChoices(
+        { name: "Approve", value: "approve" },
+        { name: "Deny", value: "deny" },
+        { name: "Remove point", value: "removepoint" }
+      )
     ),
   execute: async (interaction) => {
     const FESTIVAL_MANAGER_ROLE_ID = process.env.FESTIVAL_MANAGER_ROLE_ID;
@@ -51,16 +55,25 @@ module.exports = {
 
       if (type === "approve") {
         await post.setAppliedTags([APPROVED_TAG_ID]);
+      } else if (type === "deny") {
+        await post.setAppliedTags([DENIED_TAG_ID]);
       } else {
         await post.setAppliedTags([DENIED_TAG_ID]);
       }
 
       await interaction.reply({
-        content: `${type == "approve" ? "✅ Approved" : "❌ Denied"} festival log for <@${targetUserId}> ${type === "approve" ? "and added 1 point." : ""}`,
+        content: type === "approve"
+          ? `✅ Approved festival log for <@${targetUserId}> and added 1 point.`
+          : type === "deny"
+            ? `❌ Denied festival log for <@${targetUserId}>.`
+            : `Removed 1 festival point from <@${targetUserId}>.`,
       });
 
       try {
-        await interaction.client.modules.database.updatePartyLogStatus(postId, type);
+        await interaction.client.modules.database.updatePartyLogStatus(
+          postId,
+          type === "removepoint" ? "deny" : type
+        );
       } catch (error) {
         console.error("Failed to update party log status:", error);
       }

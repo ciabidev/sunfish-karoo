@@ -43,6 +43,7 @@ async function updateFestivalScore(userId, postId, type, retry = true) {
   const user = String(userId);
   const post = String(postId);
   const delta = type === "approve" || type === "add" ? 1 : 0;
+  const removePoint = type === "removepoint" || type === "remove";
 
   try {
     const previous = await FestivalScore.findOneAndUpdate(
@@ -54,18 +55,27 @@ async function updateFestivalScore(userId, postId, type, retry = true) {
             score: {
               $cond: [
                 { $in: [post, { $ifNull: ["$message_ids", []] }] },
-                { $ifNull: ["$score", 0] },
+                removePoint
+                  ? { $max: [0, { $subtract: [{ $ifNull: ["$score", 0] }, 1] }] }
+                  : { $ifNull: ["$score", 0] },
                 { $add: [{ $ifNull: ["$score", 0] }, delta] },
               ],
             },
-            message_ids: { $setUnion: [{ $ifNull: ["$message_ids", []] }, [post]] },
+            message_ids: removePoint
+              ? { $setDifference: [{ $ifNull: ["$message_ids", []] }, [post]] }
+              : delta === 1
+                ? { $setUnion: [{ $ifNull: ["$message_ids", []] }, [post]] }
+                : { $ifNull: ["$message_ids", []] },
           },
         },
       ],
       { upsert: true, new: false, lean: true, updatePipeline: true }
     );
 
-    if (previous?.message_ids?.includes(post)) return "Already approved/denied";
+    const wasPreviouslyHandled = previous?.message_ids?.includes(post) ?? false;
+    if ((!removePoint && wasPreviouslyHandled) || (removePoint && !wasPreviouslyHandled)) {
+      return "Already approved/denied";
+    }
 
     return FestivalScore.findOne({ user }).select("-_id user score message_ids").lean();
   } catch (error) {
