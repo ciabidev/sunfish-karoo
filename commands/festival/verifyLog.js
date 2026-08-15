@@ -19,16 +19,21 @@ module.exports = {
       });
     }
 
+
     const post = interaction.channel;
-    if (!post.parent.id === FESTIVAL_CHANNEL_ID) {
+    if (!post.parentId || post.parentId !== FESTIVAL_CHANNEL_ID) {
       return await interaction.reply({
         content: "You can only verify festival logs in a festival post",
         flags: MessageFlags.Ephemeral,
       });
     }
     const postId = interaction.channelId;
-    const targetUserId = post.ownerId;
-    
+    let targetUserId = post.ownerId;
+    // If the post was created by Karoo (bot), look up the actual host from the database
+    if (post.ownerId === interaction.client.user.id) {
+      const hostId = await interaction.client.modules.database.getPartyHost(postId);
+      if (hostId) targetUserId = hostId;
+    }
     try {
       const appliedTagIds = post.appliedTags.map((tag) => tag.id);
       const isApproved = appliedTagIds.includes(APPROVED_TAG_ID) && !appliedTagIds.includes(DENIED_TAG_ID);
@@ -53,6 +58,12 @@ module.exports = {
       await interaction.reply({
         content: `${type == "approve" ? "✅ Approved" : "❌ Denied"} festival log for <@${targetUserId}> ${type === "approve" ? "and added 1 point." : ""}`,
       });
+
+      try {
+        await interaction.client.modules.database.updatePartyLogStatus(postId, type);
+      } catch (error) {
+        console.error("Failed to update party log status:", error);
+      }
     } catch (error) {
       console.error("Error approving festival log:", error);
       await interaction.reply({
