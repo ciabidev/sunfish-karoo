@@ -28,6 +28,17 @@ const partyLogSchema = new mongoose.Schema(
 const PartyLog =
   mongoose.models.PartyLog || mongoose.model("PartyLog", partyLogSchema);
 
+const festivalSettingsSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true, unique: true, default: "festival" },
+    defaultTagId: { type: String, required: true },
+  },
+  { collection: "festival_settings", versionKey: false }
+);
+
+const FestivalSettings =
+  mongoose.models.FestivalSettings || mongoose.model("FestivalSettings", festivalSettingsSchema);
+
 async function connectDatabase() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is required");
@@ -36,6 +47,7 @@ async function connectDatabase() {
     await mongoose.connect(uri, { dbName: databaseName });
     await FestivalScore.init();
     await PartyLog.init();
+    await FestivalSettings.init();
   }
 }
 
@@ -148,6 +160,21 @@ async function getPartyHost(threadId) {
   return entry?.hostId || null;
 }
 
+async function setFestivalDefaultTag(tagId) {
+  await FestivalSettings.updateOne(
+    { key: "festival" },
+    { $set: { defaultTagId: String(tagId) } },
+    { upsert: true }
+  );
+}
+
+async function getFestivalDefaultTag() {
+  const settings = await FestivalSettings.findOne({ key: "festival" })
+    .select("defaultTagId -_id")
+    .lean();
+  return settings?.defaultTagId ?? null;
+}
+
 async function closeDatabase() {
   if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
 }
@@ -163,4 +190,6 @@ module.exports = {
   updatePartyLogStatus,
   closeDatabase,
   getPartyHost,
+  setFestivalDefaultTag,
+  getFestivalDefaultTag,
 };

@@ -22,7 +22,7 @@ module.exports = {
       for (let i = 0; i < top.length; i += 1) {
         const entry = top[i];
         const score = entry.score ?? 0;
-        if (i < 3) {
+        if (i < 4) {
           prefix = "## ";
           if (i === 0) {
             prefix = " ## 👑 ";
@@ -40,13 +40,19 @@ module.exports = {
 
     if (!isInTop) {
       const rank = await database.getFestivalRank(currentUserId, currentScore);
-      lines.push("...");
+      lines.push("...and you:");
       lines.push(`${rank ?? "?"}. <@${currentUserId}> — ${currentScore}`);
     }
 
+    const emperorCount = Math.min(top.length, 4);
+    const numberWord =
+      emperorCount <= 0
+        ? "Four"
+        : ["One", "Two", "Three", "Four"][emperorCount - 1] || "Four";
+
     const container = new ContainerBuilder().addTextDisplayComponents((t) =>
       t.setContent(
-        `## Festival Host Leaderboard\n${lines.join("\n")}\n-# Anyone can participate in the festival! <#${process.env.FESTIVAL_CHANNEL_ID}>`
+        `## The ${numberWord} ${emperorCount === 1 ? "Emperor" : "Emperors"}\n-# of the festival\n${lines.join("\n")}\n-# Anyone can participate in the festival! <#${process.env.FESTIVAL_CHANNEL_ID}>`
       ),
     );
 

@@ -212,9 +212,12 @@ module.exports = {
             }
 
             // Create forum post
+            const statusTagId = isSuspicious
+              ? process.env.FESTIVAL_PENDING_TAG_ID
+              : process.env.FESTIVAL_APPROVED_TAG_ID;
             const thread = await logChannel.threads.create({
               name: activity.length > 100 ? `${activity.slice(0, 97)}...` : activity,
-              appliedTags: isSuspicious ? [] : [process.env.FESTIVAL_APPROVED_TAG_ID],
+              appliedTags: statusTagId ? [statusTagId] : [],
               message: { ...postData, files },
             });
 
