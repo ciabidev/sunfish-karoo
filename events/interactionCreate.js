@@ -183,12 +183,12 @@ module.exports = {
           
 
           const postData = {
-            content: `**${activity}** hosted by <@${interaction.user.id}> for ${durationMinutes.toFixed(1)} minutes - ${targetMessage.url}${isSuspicious ? `\n> <@&${process.env.FESTIVAL_MANAGER_ROLE_ID}> this seems suspicious... please review.\n> * -# Reason: Suspiciously short duration` : ``}`,
+            content: `Hosted ${activity} for ${durationMinutes.toFixed(1)} minutes - ${targetMessage.url}`,
             components: [],
             allowedMentions: {
               parse: [],
               users: [interaction.user.id],
-              roles: isSuspicious ? [process.env.FESTIVAL_MANAGER_ROLE_ID] : [],
+              roles: [],
             },
           };
 
@@ -211,20 +211,48 @@ module.exports = {
               return;
             }
 
-            // Create forum post
+            // Create the forum post through a temporary webhook so it displays as the host.
             const statusTagId = isSuspicious
               ? process.env.FESTIVAL_PENDING_TAG_ID
               : process.env.FESTIVAL_APPROVED_TAG_ID;
-            const thread = await logChannel.threads.create({
-              name: activity.length > 100 ? `${activity.slice(0, 97)}...` : activity,
-              appliedTags: statusTagId ? [statusTagId] : [],
-              message: { ...postData, files },
+            const hostMember = await interaction.guild.members.fetch(interaction.user.id);
+            const webhook = await logChannel.createWebhook({
+              name: "Karoo Party Log",
+              reason: `Creating a festival log for ${interaction.user.id}`,
             });
+            let webhookMessage;
+
+            try {
+              webhookMessage = await webhook.send({
+                ...postData,
+                files,
+                username: hostMember.displayName,
+                avatarURL: hostMember.displayAvatarURL({ size: 256 }),
+                threadName: activity.length > 100 ? `${activity.slice(0, 97)}...` : activity,
+                appliedTags: statusTagId ? [statusTagId] : [],
+              });
+            } finally {
+              await webhook.delete("Festival log created").catch((error) => {
+                console.error("[PARTY LOG] Failed to delete temporary webhook:", error);
+              });
+            }
+
+            const threadId = webhookMessage.channelId;
+
+            if (isSuspicious) {
+              const thread = await interaction.client.channels.fetch(threadId);
+              if (thread) {
+                await thread.send({
+                  content: `<@&${process.env.FESTIVAL_MANAGER_ROLE_ID}> this seems suspicious... please review.\n-# Reason: Suspiciously short duration`,
+                  allowedMentions: { roles: [process.env.FESTIVAL_MANAGER_ROLE_ID] },
+                });
+              }
+            }
 
             // Award festival point to host (only if not flagged for review)
             if (!isSuspicious) {
               try {
-                await interaction.client.modules.database.updateFestivalScore(interaction.user.id, thread.id, "add");
+                await interaction.client.modules.database.updateFestivalScore(interaction.user.id, threadId, "add");
               } catch (error) {
                 console.error("[PARTY LOG] Failed to award festival point:", error);
               }
@@ -234,7 +262,7 @@ module.exports = {
             try {
               await interaction.client.modules.database.addPartyLog(
                 interaction.user.id,
-                thread.id,
+                threadId,
                 targetMessage.id,
                 isSuspicious ? "pending" : "approved"
               );

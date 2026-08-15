@@ -16,6 +16,7 @@ module.exports = {
     const FESTIVAL_CHANNEL_ID = process.env.FESTIVAL_CHANNEL_ID;
     const APPROVED_TAG_ID = process.env.FESTIVAL_APPROVED_TAG_ID;
     const DENIED_TAG_ID = process.env.FESTIVAL_DENIED_TAG_ID;
+    const PENDING_TAG_ID = process.env.FESTIVAL_PENDING_TAG_ID;
     if (!interaction.member.roles.cache.has(FESTIVAL_MANAGER_ROLE_ID)) {
       return await interaction.reply({
         content: "You do not have permission to approve festival logs.",
@@ -41,7 +42,7 @@ module.exports = {
     try {
       const appliedTagIds = post.appliedTags.map((tag) => tag.id);
       const isApproved = appliedTagIds.includes(APPROVED_TAG_ID) && !appliedTagIds.includes(DENIED_TAG_ID);
-      const type = interaction.options.getString("type") ?? (isApproved ? "approve" : "deny");
+      const type = interaction.options.getString("type") ?? "approve";
       
       let data = await interaction.client.modules.database.updateFestivalScore(targetUserId, postId, type);
     
@@ -54,11 +55,21 @@ module.exports = {
       }
 
       if (type === "approve") {
-        await post.setAppliedTags([APPROVED_TAG_ID]);
-      } else if (type === "deny") {
-        await post.setAppliedTags([DENIED_TAG_ID]);
+        const currentTags = post.appliedTags.filter(
+          (tag) => tag !== PENDING_TAG_ID && tag !== DENIED_TAG_ID
+        );
+        if (!currentTags.includes(APPROVED_TAG_ID)) {
+          currentTags.push(APPROVED_TAG_ID);
+        }
+        await post.setAppliedTags(currentTags);
       } else {
-        await post.setAppliedTags([DENIED_TAG_ID]);
+        const currentTags = post.appliedTags.filter(
+          (tag) => tag !== PENDING_TAG_ID && tag !== APPROVED_TAG_ID
+        );
+        if (!currentTags.includes(DENIED_TAG_ID)) {
+          currentTags.push(DENIED_TAG_ID);
+        }
+        await post.setAppliedTags(currentTags);
       }
 
       await interaction.reply({
