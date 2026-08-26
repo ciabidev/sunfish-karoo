@@ -28,23 +28,28 @@ module.exports = {
     const post = interaction.channel;
     if (!post.parentId || post.parentId !== FESTIVAL_CHANNEL_ID) {
       return await interaction.reply({
-        content: "You can only verify festival logs in a festival post",
+        content: "This isn't a festival log",
         flags: MessageFlags.Ephemeral,
       });
     }
     const postId = interaction.channelId;
     let targetUserId = post.ownerId;
-    // If the post was created by Karoo (bot), look up the actual host from the database
-    if (post.ownerId === interaction.client.user.id) {
-      const hostId = await interaction.client.modules.database.getPartyHost(postId);
-      if (hostId) targetUserId = hostId;
-    }
+    const hostId = await interaction.client.modules.database.getPartyHost(postId);
+    if (hostId) targetUserId = hostId;
+
     try {
       const appliedTagIds = post.appliedTags.map((tag) => tag.id);
       const isApproved = appliedTagIds.includes(APPROVED_TAG_ID) && !appliedTagIds.includes(DENIED_TAG_ID);
       const type = interaction.options.getString("type") ?? "approve";
+      const partyLog = await interaction.client.modules.database.getPartyLog(postId);
+      const points = partyLog?.points ?? 1;
       
-      let data = await interaction.client.modules.database.updateFestivalScore(targetUserId, postId, type);
+      let data = await interaction.client.modules.database.updateFestivalScore(
+        targetUserId,
+        postId,
+        type,
+        points
+      );
     
       if (data === "Already approved/denied") {
         await interaction.reply({
@@ -74,10 +79,10 @@ module.exports = {
 
       await interaction.reply({
         content: type === "approve"
-          ? `✅ Approved festival log for <@${targetUserId}> and added 1 point.`
+          ? `✅ Approved festival log for <@${targetUserId}> and added ${points} ${points === 1 ? "point" : "points"}.`
           : type === "deny"
             ? `❌ Denied festival log for <@${targetUserId}>.`
-            : `Removed 1 festival point from <@${targetUserId}>.`,
+            : `Removed ${points} festival ${points === 1 ? "point" : "points"} from <@${targetUserId}>.`,
       });
 
       try {

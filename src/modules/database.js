@@ -8,6 +8,10 @@ const festivalScoreSchema = new mongoose.Schema(
     user: { type: String, required: true, unique: true },
     score: { type: Number, required: true, default: 0 },
     message_ids: { type: [String], default: [] },
+    point_awards: {
+      type: [{ message_id: { type: String, required: true }, points: { type: Number, required: true } }],
+      default: [],
+    },
   },
   { collection: "festival_scores", versionKey: false }
 );
@@ -20,6 +24,7 @@ const partyLogSchema = new mongoose.Schema(
     threadId: { type: String, required: true, unique: true },
     hostId: { type: String, required: true },
     pingMessageId: { type: String, required: true, unique: true },
+    points: { type: Number, required: true, default: 1, min: 1 },
     status: { type: String, enum: ["pending", "approved", "denied"], default: "pending" },
   },
   { collection: "party_logs", timestamps: true }
@@ -31,13 +36,44 @@ const PartyLog =
 const festivalSettingsSchema = new mongoose.Schema(
   {
     key: { type: String, required: true, unique: true, default: "festival" },
-    defaultTagId: { type: String, required: true },
+    defaultTagId: { type: String, default: null },
+    partyChannels: {
+      type: [{ channelId: { type: String, required: true }, points: { type: Number, required: true, min: 1 } }],
+      default: [],
+    },
   },
   { collection: "festival_settings", versionKey: false }
 );
 
 const FestivalSettings =
   mongoose.models.FestivalSettings || mongoose.model("FestivalSettings", festivalSettingsSchema);
+
+const festivalShopItemSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+    price: { type: Number, required: true, min: 1 },
+    stock: { type: Number, required: true, min: 0 },
+    imageUrl: { type: String, required: true },
+  },
+  { collection: "festival_shop_items", timestamps: true, versionKey: false }
+);
+
+const FestivalShopItem =
+  mongoose.models.FestivalShopItem || mongoose.model("FestivalShopItem", festivalShopItemSchema);
+
+const festivalPurchaseSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    itemId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+    itemName: { type: String, required: true },
+    pointsPaid: { type: Number, required: true, min: 1 },
+  },
+  { collection: "festival_purchases", timestamps: true, versionKey: false }
+);
+
+const FestivalPurchase =
+  mongoose.models.FestivalPurchase || mongoose.model("FestivalPurchase", festivalPurchaseSchema);
 
 async function connectDatabase() {
   const uri = process.env.MONGODB_URI;
@@ -48,13 +84,16 @@ async function connectDatabase() {
     await FestivalScore.init();
     await PartyLog.init();
     await FestivalSettings.init();
+    await FestivalShopItem.init();
+    await FestivalPurchase.init();
   }
 }
 
-async function updateFestivalScore(userId, postId, type, retry = true) {
+async function updateFestivalScore(userId, postId, type, points = 1, retry = true) {
   const user = String(userId);
   const post = String(postId);
-  const delta = type === "approve" || type === "add" ? 1 : 0;
+  const normalizedPoints = Math.max(1, Math.trunc(Number(points) || 1));
+  const delta = type === "approve" || type === "add" ? normalizedPoints : 0;
   const removePoint = type === "removepoint" || type === "remove";
 
   try {
@@ -68,16 +107,66 @@ async function updateFestivalScore(userId, postId, type, retry = true) {
               $cond: [
                 { $in: [post, { $ifNull: ["$message_ids", []] }] },
                 removePoint
-                  ? { $max: [0, { $subtract: [{ $ifNull: ["$score", 0] }, 1] }] }
+                  ? {
+                      $max: [
+                        0,
+                        {
+                          $subtract: [
+                            { $ifNull: ["$score", 0] },
+                            {
+                              $ifNull: [
+                                {
+                                  $getField: {
+                                    field: "points",
+                                    input: {
+                                      $first: {
+                                        $filter: {
+                                          input: { $ifNull: ["$point_awards", []] },
+                                          as: "award",
+                                          cond: { $eq: ["$$award.message_id", post] },
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                                1,
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    }
                   : { $ifNull: ["$score", 0] },
                 { $add: [{ $ifNull: ["$score", 0] }, delta] },
               ],
             },
             message_ids: removePoint
               ? { $setDifference: [{ $ifNull: ["$message_ids", []] }, [post]] }
-              : delta === 1
+              : delta > 0
                 ? { $setUnion: [{ $ifNull: ["$message_ids", []] }, [post]] }
                 : { $ifNull: ["$message_ids", []] },
+            point_awards: removePoint
+              ? {
+                  $filter: {
+                    input: { $ifNull: ["$point_awards", []] },
+                    as: "award",
+                    cond: { $ne: ["$$award.message_id", post] },
+                  },
+                }
+              : delta > 0
+                ? {
+                    $cond: [
+                      { $in: [post, { $ifNull: ["$message_ids", []] }] },
+                      { $ifNull: ["$point_awards", []] },
+                      {
+                        $concatArrays: [
+                          { $ifNull: ["$point_awards", []] },
+                          [{ message_id: post, points: delta }],
+                        ],
+                      },
+                    ],
+                  }
+                : { $ifNull: ["$point_awards", []] },
           },
         },
       ],
@@ -92,7 +181,7 @@ async function updateFestivalScore(userId, postId, type, retry = true) {
     return FestivalScore.findOne({ user }).select("-_id user score message_ids").lean();
   } catch (error) {
     if (retry && error.code === 11000) {
-      return updateFestivalScore(user, post, type, false);
+      return updateFestivalScore(user, post, type, normalizedPoints, false);
     }
     throw error;
   }
@@ -130,12 +219,13 @@ async function isPartyMessageLogged(messageId) {
  * @param {string} pingMessageId - The Sailor's Lodge party ping message ID
  * @returns {Promise<void>}
  */
-async function addPartyLog(hostId, threadId, pingMessageId, status = "pending") {
+async function addPartyLog(hostId, threadId, pingMessageId, status = "pending", points = 1) {
   await PartyLog.create({
     hostId: String(hostId),
     threadId: String(threadId),
     pingMessageId: String(pingMessageId),
     status,
+    points: Math.max(1, Math.trunc(Number(points) || 1)),
   });
 }
 
@@ -160,7 +250,13 @@ async function getPartyHost(threadId) {
   return entry?.hostId || null;
 }
 
-async function setFestivalDefaultTag(tagId) {
+async function getPartyLog(threadId) {
+  return PartyLog.findOne({ threadId: String(threadId) })
+    .select("-_id hostId threadId pingMessageId status points")
+    .lean();
+}
+
+async function setFestivalTag(tagId) {
   await FestivalSettings.updateOne(
     { key: "festival" },
     { $set: { defaultTagId: String(tagId) } },
@@ -175,6 +271,167 @@ async function getFestivalDefaultTag() {
   return settings?.defaultTagId ?? null;
 }
 
+async function getFestivalPartyChannels() {
+  const settings = await FestivalSettings.findOneAndUpdate(
+    { key: "festival" },
+    [
+      {
+        $set: {
+          key: "festival",
+          defaultTagId: { $ifNull: ["$defaultTagId", null] },
+          partyChannels: { $ifNull: ["$partyChannels", []] },
+        },
+      },
+    ],
+    { upsert: true, new: true, lean: true, updatePipeline: true }
+  )
+    .select("partyChannels -_id")
+    .lean();
+  return settings.partyChannels ?? [];
+}
+
+async function getFestivalPartyChannel(channelId) {
+  const channel = String(channelId);
+  const settings = await FestivalSettings.findOne(
+    { key: "festival", "partyChannels.channelId": channel },
+    { "partyChannels.$": 1, _id: 0 }
+  ).lean();
+  return settings?.partyChannels?.[0] ?? null;
+}
+
+async function setFestivalPartyChannel(channelId, points, previousChannelId = channelId) {
+  const channel = String(channelId);
+  const previousChannel = String(previousChannelId);
+  const normalizedPoints = Math.max(1, Math.trunc(Number(points) || 1));
+  await FestivalSettings.updateOne(
+    { key: "festival" },
+    [
+      {
+        $set: {
+          key: "festival",
+          defaultTagId: { $ifNull: ["$defaultTagId", null] },
+          partyChannels: {
+            $concatArrays: [
+              {
+                $filter: {
+                  input: { $ifNull: ["$partyChannels", []] },
+                  as: "partyChannel",
+                  cond: {
+                    $and: [
+                      { $ne: ["$$partyChannel.channelId", channel] },
+                      { $ne: ["$$partyChannel.channelId", previousChannel] },
+                    ],
+                  },
+                },
+              },
+              [{ channelId: channel, points: normalizedPoints }],
+            ],
+          },
+        },
+      },
+    ],
+    { upsert: true, updatePipeline: true }
+  );
+}
+
+async function removeFestivalPartyChannel(channelId) {
+  await FestivalSettings.updateOne(
+    { key: "festival" },
+    { $pull: { partyChannels: { channelId: String(channelId) } } }
+  );
+}
+
+async function getFestivalShopItems() {
+  return FestivalShopItem.find()
+    .select("name description price stock imageUrl")
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+}
+
+async function getFestivalShopItem(itemId) {
+  if (!mongoose.isObjectIdOrHexString(itemId)) return null;
+  return FestivalShopItem.findById(itemId)
+    .select("name description price stock imageUrl")
+    .lean();
+}
+
+async function setFestivalShopItem(itemId, name, description, price, stock, imageUrl) {
+  const item = {
+    name: String(name),
+    description: String(description),
+    price: Math.trunc(Number(price)),
+    stock: Math.trunc(Number(stock)),
+    imageUrl: String(imageUrl),
+  };
+
+  if (itemId === "new") {
+    return FestivalShopItem.create(item);
+  }
+
+  if (!mongoose.isObjectIdOrHexString(itemId)) return null;
+
+  return FestivalShopItem.findByIdAndUpdate(itemId, { $set: item }, { new: true }).lean();
+}
+
+async function removeFestivalShopItem(itemId) {
+  if (!mongoose.isObjectIdOrHexString(itemId)) return;
+  await FestivalShopItem.findByIdAndDelete(itemId);
+}
+
+async function purchaseFestivalShopItem(userId, itemId) {
+  if (!mongoose.isObjectIdOrHexString(itemId)) return { status: "unavailable" };
+  const user = String(userId);
+  let purchase;
+
+  try {
+    await mongoose.connection.transaction(async (session) => {
+      const item = await FestivalShopItem.findOneAndUpdate(
+        { _id: itemId, stock: { $gt: 0 } },
+        { $inc: { stock: -1 } },
+        { new: true, lean: true, session }
+      );
+
+      if (!item) {
+        purchase = { status: "unavailable" };
+        return;
+      }
+
+      const score = await FestivalScore.findOneAndUpdate(
+        { user, score: { $gte: item.price } },
+        { $inc: { score: -item.price } },
+        { new: true, lean: true, session }
+      );
+
+      if (!score) {
+        const error = new Error("Insufficient festival points");
+        error.code = "INSUFFICIENT_FESTIVAL_POINTS";
+        throw error;
+      }
+
+      await FestivalPurchase.create(
+        [{ userId: user, itemId: item._id, itemName: item.name, pointsPaid: item.price }],
+        { session }
+      );
+      purchase = {
+        status: "purchased",
+        itemName: item.name,
+        pointsPaid: item.price,
+        remainingPoints: score.score,
+      };
+    });
+  } catch (error) {
+    if (error.code === "INSUFFICIENT_FESTIVAL_POINTS") {
+      return { status: "insufficient_points" };
+    }
+    throw error;
+  }
+
+  return purchase;
+}
+
+async function resetFestival() {
+  await FestivalScore.deleteMany({});
+}
 async function closeDatabase() {
   if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
 }
@@ -190,6 +447,17 @@ module.exports = {
   updatePartyLogStatus,
   closeDatabase,
   getPartyHost,
-  setFestivalDefaultTag,
+  getPartyLog,
+  setFestivalTag,
   getFestivalDefaultTag,
+  getFestivalPartyChannels,
+  getFestivalPartyChannel,
+  setFestivalPartyChannel,
+  removeFestivalPartyChannel,
+  getFestivalShopItems,
+  getFestivalShopItem,
+  setFestivalShopItem,
+  removeFestivalShopItem,
+  purchaseFestivalShopItem,
+  resetFestival
 };

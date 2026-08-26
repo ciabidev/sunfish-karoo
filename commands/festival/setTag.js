@@ -27,7 +27,7 @@ module.exports = {
       });
     }
 
-    await interaction.client.modules.database.setFestivalDefaultTag(tagId);
+    await interaction.client.modules.database.setFestivalTag(tagId);
     return interaction.reply({
       content: `Got it — **${tag.name}** will be applied to new festival posts.`,
       flags: MessageFlags.Ephemeral,

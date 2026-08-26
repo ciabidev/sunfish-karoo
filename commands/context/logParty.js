@@ -26,6 +26,17 @@ module.exports = {
       return;
     }
 
+    const partyChannel = await interaction.client.modules.database.getFestivalPartyChannel(
+      targetMessage.channelId
+    );
+    if (!partyChannel) {
+      await interaction.reply({
+        content: "Parties can only be logged from a configured festival party channel.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     const hostId = getSailorsLodgeHostId(targetMessage);
     if (!hostId) {
       await interaction.reply({
