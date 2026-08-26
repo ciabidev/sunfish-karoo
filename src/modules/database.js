@@ -67,13 +67,35 @@ const festivalPurchaseSchema = new mongoose.Schema(
     userId: { type: String, required: true, index: true },
     itemId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
     itemName: { type: String, required: true },
+    itemDescription: { type: String, required: true },
+    imageUrl: { type: String, required: true },
     pointsPaid: { type: Number, required: true, min: 1 },
+    quantity: { type: Number, required: true, default: 1, min: 1 },
+    checkoutRequestId: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },
+    collectedAt: { type: Date, default: null, index: true },
   },
   { collection: "festival_purchases", timestamps: true, versionKey: false }
 );
 
 const FestivalPurchase =
   mongoose.models.FestivalPurchase || mongoose.model("FestivalPurchase", festivalPurchaseSchema);
+
+const festivalCheckoutRequestSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    activeUserId: { type: String, unique: true, sparse: true },
+    purchaseIds: { type: [mongoose.Schema.Types.ObjectId], required: true },
+    status: { type: String, enum: ["pending", "completed"], default: "pending" },
+    messageId: { type: String, default: null },
+    threadId: { type: String, default: null },
+    completedAt: { type: Date, default: null },
+  },
+  { collection: "festival_checkout_requests", timestamps: true, versionKey: false }
+);
+
+const FestivalCheckoutRequest =
+  mongoose.models.FestivalCheckoutRequest ||
+  mongoose.model("FestivalCheckoutRequest", festivalCheckoutRequestSchema);
 
 async function connectDatabase() {
   const uri = process.env.MONGODB_URI;
@@ -86,6 +108,7 @@ async function connectDatabase() {
     await FestivalSettings.init();
     await FestivalShopItem.init();
     await FestivalPurchase.init();
+    await FestivalCheckoutRequest.init();
   }
 }
 
@@ -378,16 +401,17 @@ async function removeFestivalShopItem(itemId) {
   await FestivalShopItem.findByIdAndDelete(itemId);
 }
 
-async function purchaseFestivalShopItem(userId, itemId) {
+async function purchaseFestivalShopItem(userId, itemId, quantity = 1) {
   if (!mongoose.isObjectIdOrHexString(itemId)) return { status: "unavailable" };
+  if (!Number.isSafeInteger(quantity) || quantity < 1) return { status: "invalid_quantity" };
   const user = String(userId);
   let purchase;
 
   try {
     await mongoose.connection.transaction(async (session) => {
       const item = await FestivalShopItem.findOneAndUpdate(
-        { _id: itemId, stock: { $gt: 0 } },
-        { $inc: { stock: -1 } },
+        { _id: itemId, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
         { new: true, lean: true, session }
       );
 
@@ -397,8 +421,8 @@ async function purchaseFestivalShopItem(userId, itemId) {
       }
 
       const score = await FestivalScore.findOneAndUpdate(
-        { user, score: { $gte: item.price } },
-        { $inc: { score: -item.price } },
+        { user, score: { $gte: item.price * quantity } },
+        { $inc: { score: -(item.price * quantity) } },
         { new: true, lean: true, session }
       );
 
@@ -409,13 +433,22 @@ async function purchaseFestivalShopItem(userId, itemId) {
       }
 
       await FestivalPurchase.create(
-        [{ userId: user, itemId: item._id, itemName: item.name, pointsPaid: item.price }],
+        [{
+          userId: user,
+          itemId: item._id,
+          itemName: item.name,
+          itemDescription: item.description,
+          imageUrl: item.imageUrl,
+          pointsPaid: item.price,
+          quantity,
+        }],
         { session }
       );
       purchase = {
         status: "purchased",
         itemName: item.name,
-        pointsPaid: item.price,
+        quantity,
+        pointsPaid: item.price * quantity,
         remainingPoints: score.score,
       };
     });
@@ -427,6 +460,148 @@ async function purchaseFestivalShopItem(userId, itemId) {
   }
 
   return purchase;
+}
+
+async function getFestivalInventory(userId) {
+  const purchases = await FestivalPurchase.find({
+    userId: String(userId),
+    collectedAt: null,
+  })
+    .select("itemId itemName itemDescription imageUrl pointsPaid quantity checkoutRequestId")
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+  const shopItems = await FestivalShopItem.find({
+    _id: { $in: purchases.map((purchase) => purchase.itemId) },
+  })
+    .select("description imageUrl")
+    .lean();
+  const shopItemsById = new Map(shopItems.map((item) => [String(item._id), item]));
+  const items = new Map();
+
+  for (const purchase of purchases) {
+    const key = `${purchase.itemId}:${purchase.checkoutRequestId ?? "available"}`;
+    const item = items.get(key);
+    if (item) {
+      item.quantity += purchase.quantity ?? 1;
+      continue;
+    }
+    const shopItem = shopItemsById.get(String(purchase.itemId));
+    items.set(key, {
+      itemId: purchase.itemId,
+      name: purchase.itemName,
+      description: purchase.itemDescription ?? shopItem?.description ?? "No description provided.",
+      imageUrl: purchase.imageUrl ?? shopItem?.imageUrl ?? null,
+      pointsPaid: purchase.pointsPaid,
+      quantity: purchase.quantity ?? 1,
+      requested: purchase.checkoutRequestId != null,
+    });
+  }
+
+  return [...items.values()];
+}
+
+async function createFestivalCheckoutRequest(userId) {
+  const user = String(userId);
+  let checkout;
+
+  try {
+    await mongoose.connection.transaction(async (session) => {
+      const existingRequest = await FestivalCheckoutRequest.findOne({ activeUserId: user })
+        .session(session)
+        .lean();
+      if (existingRequest) {
+        checkout = { status: "pending" };
+        return;
+      }
+
+      const purchases = await FestivalPurchase.find({
+        userId: user,
+        collectedAt: null,
+        checkoutRequestId: null,
+      })
+        .session(session)
+        .lean();
+      if (purchases.length === 0) {
+        checkout = { status: "empty" };
+        return;
+      }
+
+      const [request] = await FestivalCheckoutRequest.create(
+        [{ userId: user, activeUserId: user, purchaseIds: purchases.map((item) => item._id) }],
+        { session }
+      );
+      await FestivalPurchase.updateMany(
+        { _id: { $in: request.purchaseIds }, checkoutRequestId: null },
+        { $set: { checkoutRequestId: request._id } },
+        { session }
+      );
+      checkout = { status: "created", request: request.toObject(), purchases };
+    });
+  } catch (error) {
+    if (error.code === 11000) return { status: "pending" };
+    throw error;
+  }
+
+  return checkout;
+}
+
+async function setFestivalCheckoutRequestMessage(requestId, messageId, threadId) {
+  await FestivalCheckoutRequest.updateOne(
+    { _id: requestId, status: "pending" },
+    { $set: { messageId: String(messageId), threadId: String(threadId) } }
+  );
+}
+
+async function cancelFestivalCheckoutRequest(requestId) {
+  if (!mongoose.isObjectIdOrHexString(requestId)) return;
+  await mongoose.connection.transaction(async (session) => {
+    const request = await FestivalCheckoutRequest.findOneAndDelete(
+      { _id: requestId, status: "pending" },
+      { session }
+    ).lean();
+    if (!request) return;
+    await FestivalPurchase.updateMany(
+      { checkoutRequestId: request._id, collectedAt: null },
+      { $set: { checkoutRequestId: null } },
+      { session }
+    );
+  });
+}
+
+async function completeFestivalCheckoutRequest(requestId) {
+  if (!mongoose.isObjectIdOrHexString(requestId)) return { status: "missing" };
+  let checkout;
+
+  await mongoose.connection.transaction(async (session) => {
+    const request = await FestivalCheckoutRequest.findOneAndUpdate(
+      { _id: requestId, status: "pending" },
+      {
+        $set: { status: "completed", completedAt: new Date() },
+        $unset: { activeUserId: "" },
+      },
+      { new: true, lean: true, session }
+    );
+    if (!request) {
+      const existingRequest = await FestivalCheckoutRequest.findById(requestId).session(session).lean();
+      checkout = existingRequest
+        ? { status: "already_completed", threadId: existingRequest.threadId }
+        : { status: "missing" };
+      return;
+    }
+
+    const result = await FestivalPurchase.updateMany(
+      { checkoutRequestId: request._id, collectedAt: null },
+      { $set: { collectedAt: new Date() } },
+      { session }
+    );
+    checkout = {
+      status: "completed",
+      collectedCount: result.modifiedCount,
+      threadId: request.threadId,
+    };
+  });
+
+  return checkout;
 }
 
 async function resetFestival() {
@@ -459,5 +634,10 @@ module.exports = {
   setFestivalShopItem,
   removeFestivalShopItem,
   purchaseFestivalShopItem,
+  getFestivalInventory,
+  createFestivalCheckoutRequest,
+  setFestivalCheckoutRequestMessage,
+  cancelFestivalCheckoutRequest,
+  completeFestivalCheckoutRequest,
   resetFestival
 };

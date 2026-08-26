@@ -1,7 +1,17 @@
-const { ChannelType, Events, MessageFlags } = require("discord.js");
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  ContainerBuilder,
+  Events,
+  MessageFlags,
+  SeparatorSpacingSize,
+} = require("discord.js");
 const { getSailorsLodgeHostId } = require("../commands/context/logParty.js");
 const { partyChannelsComponents } = require("../commands/festival/partychannels.js");
 const { festivalShopComponents } = require("../commands/festival/shop.js");
+const { festivalInventoryComponents } = require("../commands/festival/inventory.js");
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -91,6 +101,190 @@ module.exports = {
 
     // handle buttons
     if (interaction.isButton()) {
+      if (interaction.customId.startsWith("festival_inventory:")) {
+        const [, action, value] = interaction.customId.split(":");
+
+        if (action === "page") {
+          const items = await interaction.client.modules.database.getFestivalInventory(
+            interaction.user.id
+          );
+          await interaction.update({
+            components: festivalInventoryComponents(items, Number(value) || 0),
+          });
+          return;
+        }
+
+        if (action === "checkout") {
+          const checkoutChannel = await interaction.client.channels
+            .fetch(process.env.FESTIVAL_CHECKOUT_CHANNEL_ID)
+            .catch(() => null);
+          if (!checkoutChannel || checkoutChannel.type !== ChannelType.GuildText) {
+            await interaction.reply({
+              content: "The festival checkout channel is not configured as a text channel.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          await interaction.deferUpdate();
+          const checkout = await interaction.client.modules.database.createFestivalCheckoutRequest(
+            interaction.user.id
+          );
+          if (checkout.status === "pending") {
+            await interaction.followUp({
+              content: "You already have a pending festival collection request.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+          if (checkout.status === "empty") {
+            const items = await interaction.client.modules.database.getFestivalInventory(
+              interaction.user.id
+            );
+            await interaction.editReply({ components: festivalInventoryComponents(items) });
+            await interaction.followUp({
+              content: "You do not have any festival items ready for collection.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          let requestMessage;
+          let thread;
+          try {
+            const quantities = new Map();
+            for (const purchase of checkout.purchases) {
+              quantities.set(
+                purchase.itemName,
+                (quantities.get(purchase.itemName) ?? 0) + (purchase.quantity ?? 1)
+              );
+            }
+            const itemLines = [...quantities].map(
+              ([name, quantity]) => `-# > **${quantity}×** ${name}`
+            );
+
+            const requestContainer = new ContainerBuilder()
+              .setAccentColor(0xf5a623)
+              .addTextDisplayComponents((text) =>
+                text.setContent(
+                  `## <@${interaction.user.id}> is ready to collect their festival rewards\nWhen ready, a <@&${process.env.FESTIVAL_MANAGER_ROLE_ID}> will join you in-game and send you the items.`,
+                ),
+              )
+              .addSeparatorComponents((separator) =>
+                separator.setDivider(true).setSpacing(SeparatorSpacingSize.Small),
+              );
+            let requestItems = "";
+            for (const line of itemLines) {
+              if (`${requestItems}\n${line}`.length > 3500) {
+                requestContainer.addTextDisplayComponents((text) => text.setContent(requestItems));
+                requestItems = "";
+              }
+              requestItems += `${requestItems ? "\n" : ""}${line}`;
+            }
+            requestContainer
+              .addTextDisplayComponents((text) => text.setContent(`**Items:**\n${requestItems}`))
+              .addSeparatorComponents((separator)  =>
+                separator.setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+              )
+              .addActionRowComponents((row) =>
+                row.addComponents(
+                  new ButtonBuilder()
+                    .setCustomId(`festival_inventory:complete:${checkout.request._id}`)
+                    .setLabel("Mark Complete")
+                    .setStyle(ButtonStyle.Success)
+                )
+              );
+            requestMessage = await checkoutChannel.send({
+              components: [requestContainer],
+              flags: MessageFlags.IsComponentsV2,
+              allowedMentions: {
+                parse: [],
+                users: [interaction.user.id],
+                roles: [process.env.FESTIVAL_MANAGER_ROLE_ID],
+              },
+            });
+            thread = await requestMessage.startThread({
+              name: `Collection - ${interaction.user.username}`.slice(0, 100),
+              autoArchiveDuration: 1440,
+              reason: `Festival collection request for ${interaction.user.id}`,
+            });
+
+            let threadContent = `<@${interaction.user.id}> use this thread to coordinate with the festival managers.`
+            await thread.send({
+              content: threadContent,
+              allowedMentions: { parse: [], users: [interaction.user.id] },
+            });
+            await interaction.client.modules.database.setFestivalCheckoutRequestMessage(
+              checkout.request._id,
+              requestMessage.id,
+              thread.id
+            );
+          } catch (error) {
+            if (thread) await thread.delete("Failed to create festival checkout").catch(() => null);
+            if (requestMessage) {
+              await requestMessage.delete().catch(() => null);
+            }
+            await interaction.client.modules.database.cancelFestivalCheckoutRequest(
+              checkout.request._id
+            );
+            console.error("Failed to create festival checkout request:", error);
+            await interaction.followUp({
+              content: "Failed to create your festival collection request. Please try again.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          const items = await interaction.client.modules.database.getFestivalInventory(
+            interaction.user.id
+          );
+          await interaction.editReply({ components: festivalInventoryComponents(items) });
+          await interaction.followUp({
+            content: `Your collection request was sent. Continue in <#${thread.id}>.`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        if (action === "complete") {
+          if (!interaction.member.roles.cache.has(process.env.FESTIVAL_MANAGER_ROLE_ID)) {
+            await interaction.reply({
+              content: "You need the festival manager role to complete collection requests.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          const checkout = await interaction.client.modules.database.completeFestivalCheckoutRequest(
+            value
+          );
+          if (checkout.status === "missing") {
+            await interaction.reply({
+              content: "That festival collection request no longer exists.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          const components = interaction.message.components.map((component) => component.toJSON());
+          const actionRow = components[0].type === 17
+            ? components[0].components.findLast((component) => component.type === 1)
+            : components.find((component) => component.type === 1);
+          actionRow.components[0].label = "Collected!";
+          actionRow.components[0].disabled = true;
+          await interaction.update({ components });
+          if (checkout.threadId) {
+            const thread = await interaction.client.channels.fetch(checkout.threadId).catch(() => null);
+            if (thread) {
+              await thread.edit({ archived: true, locked: true }, "Festival collection completed");
+            }
+          }
+          return;
+        }
+
+        return;
+      }
+
       if (interaction.customId.startsWith("festival_shop:")) {
         const [, action, itemId, pageValue] = interaction.customId.split(":");
 
@@ -142,9 +336,22 @@ module.exports = {
           }
 
           await interaction.followUp({
-            content: `You bought **${purchase.itemName}** for ${purchase.pointsPaid} ${purchase.pointsPaid === 1 ? "point" : "points"}. You have ${purchase.remainingPoints} remaining.`,
+            content: `You bought **${purchase.itemName}** for ${purchase.pointsPaid} ${purchase.pointsPaid === 1 ? "point" : "points"}. Use \`/festival inventory\` when you are ready to collect your items.`,
             flags: MessageFlags.Ephemeral,
           });
+          return;
+        }
+
+        if (action === "buy_many") {
+          const item = await interaction.client.modules.database.getFestivalShopItem(itemId);
+          if (!item || item.stock === 0) {
+            await interaction.reply({
+              content: "That item is no longer available.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+          await interaction.showModal(interaction.client.modules.festivalShopBuyModal(item));
           return;
         }
 
@@ -303,6 +510,54 @@ module.exports = {
 
     // handle party log modal submission
     if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith("festival_shop:buy_many:")) {
+        const [, , itemId] = interaction.customId.split(":");
+        const quantity = Number(interaction.fields.getTextInputValue("quantity").trim());
+        if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 999999) {
+          await interaction.reply({
+            content: "Quantity must be a whole number from 1 to 999999.",
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        await interaction.deferReply({
+          flags: MessageFlags.Ephemeral,
+        });
+
+        let purchase;
+        try {
+          purchase = await interaction.client.modules.database.purchaseFestivalShopItem(
+            interaction.user.id,
+            itemId,
+            quantity
+          );
+        } catch (error) {
+          console.error("Failed to purchase multiple festival shop items:", error);
+          await interaction.editReply({
+            content: "Failed to complete that purchase. Please try again.",
+          });
+          return;
+        }
+        if (purchase.status === "insufficient_points") {
+          await interaction.editReply({
+            content: "You do not have enough festival points to buy that many.",
+          });
+          return;
+        }
+        if (purchase.status !== "purchased") {
+          await interaction.editReply({
+            content: "That quantity is no longer available.",
+          });
+          return;
+        }
+
+        await interaction.editReply({
+          content: `You bought **${purchase.quantity}× ${purchase.itemName}** for ${purchase.pointsPaid} ${purchase.pointsPaid === 1 ? "point" : "points"}. Use \`/festival inventory\` when you are ready to collect your items.`,
+        });
+        return;
+      }
+
       if (interaction.customId.startsWith("festival_shop:save:")) {
         if (!interaction.member.roles.cache.has(process.env.FESTIVAL_MANAGER_ROLE_ID)) {
           await interaction.reply({

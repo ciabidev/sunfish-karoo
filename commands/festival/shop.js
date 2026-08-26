@@ -67,6 +67,11 @@ function festivalShopComponents(items, canManage, points, requestedPage = 0) {
             .setCustomId(`festival_shop:buy:${item._id}:${page}`)
             .setLabel(item.stock > 0 ? "Buy" : "Out of Stock")
             .setStyle(item.stock > 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .setDisabled(item.stock === 0),
+          new ButtonBuilder()
+            .setCustomId(`festival_shop:buy_many:${item._id}:${page}`)
+            .setLabel("Buy Many")
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(item.stock === 0)
         )
       );
