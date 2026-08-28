@@ -7,8 +7,9 @@ module.exports = {
 
     if (!channel) return;
     await channel.send(
-      `<@&${process.env.WELCOME_ROLE_ID}> ➡️ Welcome ${member} to Sunfish Village! <#${process.env.VERIFY_CHANNEL_ID}>
-- Need help with the story, sailing, or crafting? Ping in <#${process.env.QUICK_HELP_CHANNEL_ID}> or post in <#${process.env.QUESTS_FORUM_ID}>. We have tons of active helpers ready for the job`,
+      `<@&1481829069422067712> ➡️ Welcome ${member} to Sunfish Village! <#1393748197117005958> 
+- **Looking for quick help/services?** Ping in <#1463002217886908496>. We have tons of active helpers ready for the job
+-# In our Lantern Festival this winter, you can get **free items for hosting parties** https://discord.com/channels/1393397825085374587/1542609776066699354/1542613981502373929`,
     );
   },
 };
